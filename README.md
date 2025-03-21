@@ -2,8 +2,6 @@
 
 A sleek, cross-platform Reddit browser built with Electron. Browse subreddits, view posts, and explore comments with infinite scrolling.
 
-![redDKit Screenshot](screenshot.png)
-
 ## Features
 
 - Search and browse subreddits
