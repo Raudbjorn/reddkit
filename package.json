@@ -1,0 +1,45 @@
+{
+  "name": "reddkit",
+  "version": "1.0.0",
+  "description": "A cross-platform Reddit browser application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "author": "Sveinbjörn Geirsson <sveinbjorn@sveinbjorn.dev> (https://sveinbjorn.dev)",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "build": {
+    "appId": "dev.sveinbjorn.reddkit",
+    "productName": "redDKit",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "server/**/*",
+      "client/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "client/public/icon.ico"
+    }
+  }
+}

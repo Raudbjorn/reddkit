@@ -1,0 +1,53 @@
+name: Build and Sign Windows Application
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-sign:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install Dependencies
+      run: npm ci
+    
+    - name: Build Windows Application
+      run: npm run build:win
+    
+    # Sign your application using Microsoft's action
+    - name: Sign Windows Application
+      uses: microsoft/azure-app-service-codes-sign@v1
+      with:
+        # Path to the generated executable - adjust path as needed
+        file-path: "dist/redDKit Setup 1.0.0.exe"
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    
+    # Upload the signed installer
+    - name: Upload Signed Installer
+      uses: actions/upload-artifact@v3
+      with:
+        name: signed-redDKit-installer
+        path: "dist/redDKit Setup 1.0.0.exe"
+        
+    # Also sign the portable version if needed
+    - name: Sign Portable Application
+      uses: microsoft/azure-app-service-codes-sign@v1
+      with:
+        file-path: "dist/redDKit 1.0.0.exe"
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload Signed Portable App
+      uses: actions/upload-artifact@v3
+      with:
+        name: signed-redDKit-portable
+        path: "dist/redDKit 1.0.0.exe"

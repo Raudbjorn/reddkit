@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Reddit Browser</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <h1>Reddit Browser</h1>
+      <button id="back-button" class="back-button" style="display: none;">
+        ← Back to Subreddits
+      </button>
+    </header>
+
+    <main class="main-content">
+      <!-- Subreddit Search View -->
+      <div id="subreddit-view" class="view">
+        <div class="search-container">
+          <input type="text" id="search-input" placeholder="Search for subreddits...">
+          <button id="search-button">Search</button>
+        </div>
+        
+        <div id="subreddit-results" class="results-container">
+          <div class="initial-message">Search for subreddits to begin</div>
+        </div>
+      </div>
+
+      <!-- Posts View -->
+      <div id="posts-view" class="view" style="display: none;">
+        <div class="subreddit-header">
+          <h2 id="subreddit-name">r/subreddit</h2>
+          <div class="sort-controls">
+            <button class="sort-btn active" data-sort="hot">Hot</button>
+            <button class="sort-btn" data-sort="new">New</button>
+            <button class="sort-btn" data-sort="top">Top</button>
+          </div>
+        </div>
+        
+        <div class="posts-layout">
+          <div class="posts-list">
+            <div id="posts-container">
+              <div class="loading-message">Loading posts...</div>
+            </div>
+          </div>
+          
+          <div class="post-detail">
+            <div id="post-detail-container">
+              <div class="initial-message">Select a post to view details</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
