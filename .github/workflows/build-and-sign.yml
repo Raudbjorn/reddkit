@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-and-sign:
@@ -23,31 +24,19 @@ jobs:
     
     - name: Build Windows Application
       run: npm run build:win
-    
-    # Sign your application using Microsoft's action
-    - name: Sign Windows Application
-      uses: microsoft/azure-app-service-codes-sign@v1
+      
+    - name: Sign Windows Installer
+      uses: microsoft/signtool-code-sign@v1
       with:
-        # Path to the generated executable - adjust path as needed
-        file-path: "dist/redDKit Setup 1.0.0.exe"
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        folder-to-sign: 'dist'
+        recursive: true
+        file-filter: '*.exe'
+        certificate: '${{ secrets.SIGNING_CERT_BASE64 }}'
+        certificate-password: '${{ secrets.SIGNING_CERT_PASSWORD }}'
+        timestamp-server: 'http://timestamp.digicert.com'
     
-    # Upload the signed installer
-    - name: Upload Signed Installer
+    - name: Upload Signed Artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: signed-redDKit-installer
-        path: "dist/redDKit Setup 1.0.0.exe"
-        
-    # Also sign the portable version if needed
-    - name: Sign Portable Application
-      uses: microsoft/azure-app-service-codes-sign@v1
-      with:
-        file-path: "dist/redDKit 1.0.0.exe"
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Upload Signed Portable App
-      uses: actions/upload-artifact@v3
-      with:
-        name: signed-redDKit-portable
-        path: "dist/redDKit 1.0.0.exe"
+        name: signed-redDKit
+        path: "dist/*.exe"
