@@ -7,15 +7,21 @@
   <meta name="author" content="Sveinbjörn Geirsson (https://sveinbjorn.dev)">
   <title>redDKit - Reddit Browser</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="dark-mode.css">
   <script src="https://unpkg.com/htmx.org@1.9.4"></script>
 </head>
 <body>
   <div class="app-container">
     <header class="app-header">
       <h1>redDKit</h1>
-      <button id="back-button" class="back-button" style="display: none;">
-        ← Back to Subreddits
-      </button>
+      <div class="header-controls">
+        <button id="back-button" class="back-button" style="display: none;">
+          ← Back to Subreddits
+        </button>
+        <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+          <!-- Sun/moon glyph will be set by JavaScript -->
+        </button>
+      </div>
     </header>
 
     <main class="app-content">
@@ -70,7 +76,7 @@
       </div>
     </footer>
   </div>
-
+  <script src="theme.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,0 +1,474 @@
+/* Dark Mode Variables */
+:root {
+    /* Light theme (default) */
+    --background-color: #f6f7f8;
+    --card-background: white;
+    --text-color: #1a1a1b;
+    --secondary-text: #4f4f4f;
+    --muted-text: #7c7c7c;
+    --border-color: #edeff1;
+    --hover-background: #f8f9fa;
+    --selected-background: #e9f5fd;
+    --link-color: #0079d3;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --header-background: white;
+    --header-border: #edeff1;
+    --stats-background: #f8f9fa;
+    --comment-background: #f8f9fa;
+    --reddit-orange: #ff4500;
+  }
+  
+  /* Dark theme */
+  [data-theme="dark"] {
+    --background-color: #1a1a1b;
+    --card-background: #272729;
+    --text-color: #d7dadc;
+    --secondary-text: #b8b8b8;
+    --muted-text: #818384;
+    --border-color: #343536;
+    --hover-background: #3a3a3c;
+    --selected-background: #3a4a5c;
+    --link-color: #4fbcff;
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --header-background: #1d1d1f;
+    --header-border: #343536;
+    --stats-background: #2d2d2f;
+    --comment-background: #2d2d2f;
+    --reddit-orange: #ff4500; /* keeping the orange the same */
+    --username-color: #80ccff; /* Distinctive bright blue for usernames */
+    --author-color: #8aff80; /* Bright green for post authors */
+    --score-color: #ffcc66; /* Bright amber for post scores/numbers */
+    --upvote-color: #ff8b60; /* Reddit's upvote orange */
+    --downvote-color: #9494ff; /* Reddit's downvote blue */
+  }
+  
+  /* Apply the variables */
+  body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+  }
+  
+  .app-header {
+    background-color: var(--header-background);
+    border-bottom-color: var(--header-border);
+  }
+  
+  .app-header h1 {
+    color: var(--reddit-orange);
+  }
+  
+  .subreddit-item, .post-detail, .posts-list, .results-container {
+    background-color: var(--card-background);
+    border-color: var(--border-color);
+  }
+  
+  .subreddit-description, .subreddit-desc, .post-text {
+    color: var(--secondary-text);
+  }
+  
+  .subreddit-stats, .post-meta, .subscribers, .comment-meta {
+    color: var(--muted-text);
+  }
+  
+  .subreddit-item:hover, .post-item:hover {
+    background-color: var(--hover-background);
+  }
+  
+  .post-item.selected {
+    background-color: var(--selected-background);
+  }
+  
+  a, .post-link a, .view-more a {
+    color: var(--link-color);
+  }
+  
+  .search-input, .filter-select, #search-input {
+    background-color: var(--card-background);
+    color: var(--text-color);
+    border-color: var(--border-color);
+  }
+  
+  .post-stats, .comment, .stats-background {
+    background-color: var(--stats-background);
+  }
+  
+  /* Theme toggle button */
+  .theme-toggle {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-left: 15px;
+    transition: background-color 0.2s;
+  }
+  
+  .theme-toggle:hover {
+    background-color: var(--hover-background);
+  }
+  
+/* Smooth transition between themes */
+body, .app-header, .subreddit-item, .post-item, .comment, 
+.post-detail, .post-stats, .search-input, .theme-toggle, .app-footer {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+  /* Enhance visibility of usernames and commenter information */
+[data-theme="dark"] .comment-author,
+[data-theme="dark"] .author-name,
+[data-theme="dark"] a.username,
+[data-theme="dark"] span.username,
+[data-theme="dark"] .post-meta a {
+  color: var(--username-color);
+  font-weight: 600;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* Special styling for post authors */
+[data-theme="dark"] .post-author,
+[data-theme="dark"] .original-poster,
+[data-theme="dark"] .posted-by {
+  color: var(--author-color);
+  font-weight: 600;
+}
+
+/* Target elements with text like "Posted by username" */
+[data-theme="dark"] *:contains("Posted by") {
+  color: #b8b8b8;
+}
+
+[data-theme="dark"] *:contains("Posted by") a,
+[data-theme="dark"] *:contains("Posted by") span:last-child {
+  color: var(--username-color);
+  font-weight: 600;
+}
+
+/* Improved visibility for post scores and numbers */
+[data-theme="dark"] .post-score,
+[data-theme="dark"] .score,
+[data-theme="dark"] .karma,
+[data-theme="dark"] .vote-count,
+[data-theme="dark"] .points {
+  color: var(--score-color) !important;
+  font-weight: bold !important;
+  text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Target the number indicators at beginning of posts */
+[data-theme="dark"] .post-item::before,
+[data-theme="dark"] [class*="score"],
+[data-theme="dark"] [class*="vote"],
+[data-theme="dark"] [class*="point"] {
+  color: var(--score-color) !important;
+  font-weight: bold !important;
+}
+
+/* Make sure rank numbers are visible */
+[data-theme="dark"] [class*="rank"],
+[data-theme="dark"] [id*="rank"],
+[data-theme="dark"] [class*="position"],
+[data-theme="dark"] [class*="index"] {
+  color: var(--score-color) !important;
+  background-color: rgba(255, 204, 102, 0.1) !important;
+  font-weight: bold !important;
+  border-radius: 3px !important;
+  padding: 0 4px !important;
+}
+
+/* Apply dark theme to footer */
+[data-theme="dark"] .app-footer {
+    background-color: var(--header-background);
+    border-top-color: var(--border-color);
+    color: var(--muted-text);
+  }
+  
+  [data-theme="dark"] .app-footer a {
+    color: var(--link-color);
+  }
+  
+  [data-theme="dark"] .footer-content {
+    color: var(--muted-text);
+  }
+  
+  /* Handle footer dividers and separators if present */
+  [data-theme="dark"] .app-footer hr,
+  [data-theme="dark"] .app-footer .divider,
+  [data-theme="dark"] .app-footer .separator {
+    border-color: var(--border-color);
+    background-color: var(--border-color);
+  }
+  
+  /* Footer icons or badges if any */
+  [data-theme="dark"] .app-footer .icon,
+  [data-theme="dark"] .app-footer .badge,
+  [data-theme="dark"] .app-footer svg {
+    color: var(--muted-text);
+    fill: var(--muted-text);
+  }
+  
+  /* Footer hover effects */
+  [data-theme="dark"] .app-footer a:hover {
+    color: var(--text-color);
+    text-decoration: underline;
+  }
+
+  /* Improve visibility of subreddit names in search results */
+[data-theme="dark"] .subreddit-name,
+[data-theme="dark"] a[href^="/r/"],
+[data-theme="dark"] a[href^="r/"],
+[data-theme="dark"] [class*="subreddit-link"],
+[data-theme="dark"] [class*="subreddit-title"] {
+  color: #5ea9ff !important; /* Bright blue color for subreddit names */
+  font-weight: 600 !important;
+  text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.5) !important;
+  background-color: rgba(94, 169, 255, 0.1) !important; /* Subtle background highlight */
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  display: inline-block !important;
+}
+
+/* Special styling for r/delphi specifically */
+[data-theme="dark"] a[href="/r/delphi"],
+[data-theme="dark"] a[href="r/delphi"],
+[data-theme="dark"] .subreddit-name:contains("delphi") {
+  color: #5ea9ff !important;
+  background-color: rgba(94, 169, 255, 0.15) !important;
+  font-weight: 700 !important;
+  border: 1px solid rgba(94, 169, 255, 0.3) !important;
+}
+
+/* Refined subreddit name styling - more targeted approach */
+[data-theme="dark"] .subreddit-name,
+[data-theme="dark"] a[href^="/r/"],
+[data-theme="dark"] a[href^="r/"] {
+  color: #5ea9ff !important; /* Bright blue color for subreddit names */
+  font-weight: 600 !important;
+  text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Reset description text to normal colors */
+[data-theme="dark"] .subreddit-description,
+[data-theme="dark"] .description,
+[data-theme="dark"] p {
+  color: var(--secondary-text) !important;
+  background-color: transparent !important;
+  font-weight: normal !important;
+  text-shadow: none !important;
+  padding: 0 !important;
+  display: block !important;
+}
+
+/* Make subscriber counts visible but not too prominent */
+[data-theme="dark"] .subscribers,
+[data-theme="dark"] [class*="subscriber"],
+[data-theme="dark"] [class*="member-count"] {
+  color: #a0a0a0 !important;
+  font-weight: normal !important;
+  background: none !important;
+}
+
+/* Correct styling for "No description available" text */
+[data-theme="dark"] .no-description,
+[data-theme="dark"] [class*="no-desc"] {
+  color: #888888 !important;
+  font-style: italic !important;
+  background: none !important;
+}
+
+/* Dark theme styling for search bar */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] .search-input,
+[data-theme="dark"] .search-container input {
+  background-color: #1e1e1e !important; /* Dark background matching cards */
+  color: #e8e8e8 !important; /* Bright text color for contrast */
+  border: 1px solid #383838 !important; /* Visible border */
+  border-radius: 4px !important;
+  padding: 8px 12px !important;
+  box-shadow: none !important;
+}
+
+/* Focus state for search inputs */
+[data-theme="dark"] input[type="text"]:focus,
+[data-theme="dark"] input[type="search"]:focus,
+[data-theme="dark"] .search-input:focus,
+[data-theme="dark"] .search-container input:focus {
+  border-color: #5ea9ff !important; /* Highlight border when focused */
+  outline: none !important;
+  box-shadow: 0 0 0 1px rgba(94, 169, 255, 0.2) !important;
+}
+
+/* Search button styling */
+[data-theme="dark"] .search-button,
+[data-theme="dark"] button[type="submit"],
+[data-theme="dark"] .search-container button {
+  background-color: #2c4058 !important; /* Dark blue background */
+  color: #e8e8e8 !important;
+  border: 1px solid #3a5676 !important;
+  border-radius: 0 4px 4px 0 !important;
+  padding: 8px 16px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+
+/* Search button hover state */
+[data-theme="dark"] .search-button:hover,
+[data-theme="dark"] button[type="submit"]:hover,
+[data-theme="dark"] .search-container button:hover {
+  background-color: #3a5676 !important; /* Lighter blue on hover */
+}
+
+/* Handle placeholder text color */
+[data-theme="dark"] input::placeholder {
+  color: #888888 !important;
+  opacity: 1 !important;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+  }
+
+
+  /* Improve readability of post titles */
+.post-title {
+    font-weight: 600; /* Make titles slightly bolder */
+    letter-spacing: 0.01em; /* Slightly increase letter spacing */
+  }
+  
+  [data-theme="dark"] .post-title {
+    color: #ffffff; /* Ensure titles are bright white in dark mode */
+  }
+  
+  /* Improve readability of timestamps and metadata */
+  [data-theme="dark"] .post-meta,
+  [data-theme="dark"] .comment-meta,
+  [data-theme="dark"] .subscribers {
+    color: #b8b8b8; /* Brighter color for metadata */
+  }
+  
+  /* Enhance visibility of usernames and commenter information */
+  [data-theme="dark"] .comment-author,
+  [data-theme="dark"] .author-name,
+  [data-theme="dark"] a.username,
+  [data-theme="dark"] span.username,
+  [data-theme="dark"] .post-meta a {
+    color: var(--username-color);
+    font-weight: 600;
+    text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Special styling for post authors */
+  [data-theme="dark"] .post-author,
+  [data-theme="dark"] .original-poster,
+  [data-theme="dark"] .posted-by {
+    color: var(--author-color);
+    font-weight: 600;
+  }
+  
+  /* Improved styling for "Posted by" text */
+  [data-theme="dark"] .posted-by-text {
+    color: #b8b8b8;
+  }
+  
+  /* Make usernames stand out */
+  [data-theme="dark"] u/ubmcgee,
+  [data-theme="dark"] [data-username],
+  [data-theme="dark"] span.user,
+  [data-theme="dark"] a.user {
+    color: var(--username-color);
+    font-weight: 600;
+  }
+  
+  /* Target the specific username pattern in the post metadata */
+  [data-theme="dark"] .post-meta span:contains("by"),
+  [data-theme="dark"] .post-meta span:contains("u/") {
+    color: #b8b8b8;
+  }
+  
+  [data-theme="dark"] .post-meta span:contains("u/") a,
+  [data-theme="dark"] .post-meta a[href^="/u/"] {
+    color: var(--username-color);
+    font-weight: 600;
+  }
+  
+  /* Additional selector for commenter names */
+  [data-theme="dark"] span[class*="user"],
+  [data-theme="dark"] a[class*="user"],
+  [data-theme="dark"] div[class*="user"],
+  [data-theme="dark"] span[class*="author"],
+  [data-theme="dark"] a[class*="author"],
+  [data-theme="dark"] div[class*="author"] {
+    color: var(--username-color);
+    font-weight: 600;
+  }
+  
+  /* Target elements with text like "Posted by username" */
+  [data-theme="dark"] *:contains("Posted by") {
+    color: #b8b8b8;
+  }
+  
+  [data-theme="dark"] *:contains("Posted by") a,
+  [data-theme="dark"] *:contains("Posted by") span:last-child {
+    color: var(--username-color);
+    font-weight: 600;
+  }
+  
+  /* Header controls layout */
+  .header-controls {
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Theme toggle button */
+  .theme-toggle {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 18px;
+    font-family: "Iosevka Nerd Font", monospace; /* Your preferred Nerd Font */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-left: 15px;
+    transition: background-color 0.2s;
+  }
+  
+  .theme-toggle:hover {
+    background-color: var(--hover-background);
+  }
+  
+  /* Increase specificity for comment text to ensure good contrast */
+  [data-theme="dark"] .comment-body {
+    color: var(--secondary-text);
+  }
+  
+  /* Ensure buttons have good contrast */
+  [data-theme="dark"] button,
+  [data-theme="dark"] .sort-btn {
+    background-color: #2a2a2a;
+    color: #e8e8e8;
+    border-color: #444;
+  }
+  
+  [data-theme="dark"] button:hover,
+  [data-theme="dark"] .sort-btn:hover {
+    background-color: #3a3a3a;
+  }
+  
+  [data-theme="dark"] .sort-btn.active {
+    background-color: #3a4a5c;
+    color: #ffffff;
+    border-color: #5a7a9c;
+  }
+  

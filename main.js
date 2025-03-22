@@ -22,7 +22,7 @@ async function createWindow(port) {
   mainWindow.loadURL(`http://127.0.0.1:${port}`);
   
   // Open DevTools during development (optional)
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
   
   mainWindow.on('closed', () => {
     mainWindow = null;
