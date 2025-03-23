@@ -5,10 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="A cross-platform Reddit browser application">
   <meta name="author" content="Sveinbjörn Geirsson (https://sveinbjorn.dev)">
+
+  <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://www.reddit.com https://oauth.reddit.com https://api.reddit.com; img-src 'self' https: data:; style-src 'self' 'unsafe-inline';"> -->
+
+  
   <title>redDKit - Reddit Browser</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="dark-mode.css">
-  <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+  <script src="htmx.min.js"></script>
 </head>
 <body>
   <div class="app-container">
@@ -21,49 +25,61 @@
         <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">
           <!-- Sun/moon glyph will be set by JavaScript -->
         </button>
+        <!-- Replace login button with Snoo icon -->
+        <div id="login-button" hx-get="/fragments/login-button" hx-trigger="load"></div>
       </div>
     </header>
 
-    <main class="app-content">
-      <!-- Subreddit Search View -->
-      <div id="subreddit-view" class="view show">
-        <div class="search-container">
-          <form hx-get="/api/subreddits/search" 
-                hx-target="#subreddit-results"
-                hx-indicator=".loader">
-            <input type="text" name="q" placeholder="Search for subreddits...">
-            <button type="submit">Search</button>
-            <div class="loader">Searching...</div>
-          </form>
+    <main id="app-content" class="app-content not-logged-in">
+      <!-- Sidebar for subscribed subreddits -->
+      <aside class="sidebar">
+        <div id="subreddit-sidebar" hx-get="/fragments/subreddits" hx-trigger="load">
+          <p>Loading...</p>
         </div>
-        
-        <div id="subreddit-results" class="results-container">
-          <div class="initial-message">Search for subreddits to begin</div>
-        </div>
-      </div>
+      </aside>
 
-      <!-- Posts View -->
-      <div id="posts-view" class="view">
-        <div class="subreddit-header">
-          <h2 id="current-subreddit">r/subreddit</h2>
-          <div class="sort-controls">
-            <button class="sort-btn active" data-sort="hot">Hot</button>
-            <button class="sort-btn" data-sort="new">New</button>
-            <button class="sort-btn" data-sort="top">Top</button>
+      <!-- Main content area -->
+      <div class="main-area">
+        <!-- Subreddit Search View -->
+        <div id="subreddit-view" class="view show">
+          <div class="search-container">
+            <form hx-get="/api/subreddits/search" 
+                  hx-target="#subreddit-results"
+                  hx-indicator=".loader">
+              <input type="text" name="q" placeholder="Search for subreddits...">
+              <button type="submit">Search</button>
+              <div class="loader">Searching...</div>
+            </form>
+          </div>
+          
+          <div id="subreddit-results" class="results-container">
+            <div class="initial-message">Search for subreddits to begin</div>
           </div>
         </div>
-        
-        <div class="posts-layout">
-          <div class="posts-list">
-            <div id="posts-loader" class="loader" style="display: none;">Loading posts...</div>
-            <div id="posts-container" class="panel-content">
-              <div class="initial-message">Select a sort option to load posts</div>
+
+        <!-- Posts View -->
+        <div id="posts-view" class="view">
+          <div class="subreddit-header">
+            <h2 id="current-subreddit">r/subreddit</h2>
+            <div class="sort-controls">
+              <button class="sort-btn active" data-sort="hot">Hot</button>
+              <button class="sort-btn" data-sort="new">New</button>
+              <button class="sort-btn" data-sort="top">Top</button>
             </div>
           </div>
           
-          <div class="post-detail">
-            <div id="post-detail-container" class="panel-content">
-              <div class="initial-message">Select a post to view details</div>
+          <div class="posts-layout">
+            <div class="posts-list">
+              <div id="posts-loader" class="loader" style="display: none;">Loading posts...</div>
+              <div id="posts-container" class="panel-content">
+                <div class="initial-message">Select a sort option to load posts</div>
+              </div>
+            </div>
+            
+            <div class="post-detail">
+              <div id="post-detail-container" class="panel-content">
+                <div class="initial-message">Select a post to view details</div>
+              </div>
             </div>
           </div>
         </div>

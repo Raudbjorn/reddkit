@@ -37,6 +37,12 @@ body {
   margin: 0;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .back-button {
   background-color: transparent;
   border: 1px solid #edeff1;
@@ -52,10 +58,84 @@ body {
   background-color: #f8f9fa;
 }
 
-/* Main Content */
+.theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7c7c7c;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.theme-toggle:hover {
+  background-color: #f0f0f0;
+}
+
+/* Main Content Area */
 .app-content {
+  display: flex;
   flex: 1;
   overflow: hidden;
+  padding-bottom: 10px; /* Add some space for the footer */
+}
+
+.app-content.not-logged-in .sidebar {
+  display: none;
+}
+
+.app-content.not-logged-in .main-area {
+  width: 100%;
+}
+
+/* Sidebar - Styled to match results-container */
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 0;
+  margin: 20px 0 0 20px;
+}
+
+.sidebar-inner {
+  background-color: var(--card-background, white);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px var(--shadow-color, rgba(0,0,0,0.1));
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 15px;
+  border-bottom: 1px solid var(--border-color, #edeff1);
+  background-color: var(--stats-background, #f8f9fa);
+}
+
+.sidebar h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-color, #1a1a1b);
+}
+
+.sidebar-content {
+  padding: 0;
+  background-color: var(--card-background, white);
+}
+
+.sidebar .no-results {
+  color: var(--muted-text, #7c7c7c);
+  background-color: var(--card-background, white);
+}
+
+.main-area {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 
 /* Views */
@@ -78,7 +158,7 @@ body {
   padding-top: 20px;
 }
 
-#search-input {
+.search-container input {
   flex: 1;
   padding: 12px 16px;
   border: 1px solid #ccc;
@@ -86,7 +166,7 @@ body {
   font-size: 16px;
 }
 
-#search-button {
+.search-container button {
   padding: 12px 24px;
   background-color: #ff4500;
   color: white;
@@ -105,6 +185,7 @@ body {
   overflow: hidden;
 }
 
+/* Subreddit Items - Common Styles */
 .subreddit-item {
   padding: 16px;
   border-bottom: 1px solid #edeff1;
@@ -119,6 +200,7 @@ body {
 .subreddit-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 8px;
 }
 
@@ -137,6 +219,21 @@ body {
 .subscribers {
   color: #7c7c7c;
   font-size: 14px;
+}
+
+/* Sidebar-specific subreddit styles */
+.sidebar .subreddit-item {
+  padding: 12px 15px;
+}
+
+.sidebar .subreddit-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.sidebar .subreddit-desc {
+  margin-top: 5px;
+  font-size: 12px;
 }
 
 /* Posts View */
@@ -515,8 +612,130 @@ body {
   text-decoration: underline;
 }
 
-.app-content {
-  flex: 1;
-  overflow: hidden;
-  padding-bottom: 10px; /* Add some space for the footer */
+/* Login needed state in sidebar */
+.login-needed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 15px;
+  text-align: center;
+  background-color: white;
+}
+
+.login-needed p {
+  margin-bottom: 15px;
+  color: #7c7c7c;
+  font-size: 14px;
+}
+
+/* Login button */
+.login-button {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #ff4500;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+  border: none;
+  transition: background-color 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.login-button:hover {
+  background-color: #e03d00;
+}
+
+/* Error message */
+.error-message {
+  color: #d32f2f;
+  padding: 1rem;
+}
+
+/* Reddit Snoo Login Indicator */
+.header-snoo-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.header-snoo {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  transition: transform 0.3s ease, fill 0.3s ease;
+}
+
+.header-snoo:hover {
+  transform: scale(1.1);
+}
+
+.header-snoo-logged-out .snoo-body {
+  fill: #ff4500;
+}
+
+.header-snoo-logged-in .snoo-body {
+  fill: #46a700;
+}
+
+/* Status indicator dot for the header Snoo */
+.header-snoo-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.header-snoo-logged-out::after {
+  background-color: #ff4500;
+}
+
+.header-snoo-logged-in::after {
+  background-color: #46a700;
+}
+
+/* Reddit-specific formatting */
+.comment-body a {
+  color: #0079d3;
+  text-decoration: none;
+}
+
+.comment-body a:hover {
+  text-decoration: underline;
+}
+
+/* Username mention styling */
+.comment-body .u-link {
+  font-weight: 600;
+  color: #0079d3;
+}
+
+/* Subreddit link styling */
+.comment-body .r-link {
+  color: #0079d3;
+  font-weight: 600;
+  background-color: rgba(0, 121, 211, 0.05);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+/* Dark mode styles */
+[data-theme="dark"] .comment-body a {
+  color: #4fbcff;
+}
+
+[data-theme="dark"] .comment-body .u-link {
+  color: #7ab5ff;
+}
+
+[data-theme="dark"] .comment-body .r-link {
+  color: #7ab5ff;
+  background-color: rgba(122, 181, 255, 0.1);
 }

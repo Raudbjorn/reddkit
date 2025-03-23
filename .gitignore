@@ -134,3 +134,8 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+.DS_Store
+dist-electron/
+.vscode/settings.json
+client/public/htmx.min.js
