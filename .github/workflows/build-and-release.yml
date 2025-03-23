@@ -123,7 +123,7 @@ jobs:
         } catch {
           Write-Host "❌ Package files are out of sync"
           exit 1
-        fi
+        }
     
     # Create a file to inject environment variables at build time
     - name: Create environment injector file
