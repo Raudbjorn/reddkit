@@ -134,16 +134,15 @@ jobs:
         # Add dotenv dependency if not present
         npm install --save dotenv
     
-    # Update the app to use injected environment variables
+    # Update the app code to use environment variables
     - name: Update app code to use environment variables
       run: |
-        # This creates a simple patch to modify REDDIT_CONFIG to use env-config.js
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           # Windows command
           powershell -Command "(Get-Content server/index.js) -replace \"clientSecret: process.env.REDDIT_CLIENT_SECRET.*\", \"clientSecret: require('../env-config').REDDIT_CLIENT_SECRET,\" | Set-Content server/index.js"
         else
-          # Linux/Mac command
-          sed -i 's/clientSecret: process.env.REDDIT_CLIENT_SECRET.*/clientSecret: require(\"..\/env-config\").REDDIT_CLIENT_SECRET,/g' server/index.js
+          # Linux/Mac command - Use # as delimiter instead of /
+          sed -i 's#clientSecret: process.env.REDDIT_CLIENT_SECRET.*#clientSecret: require("../env-config").REDDIT_CLIENT_SECRET,#g' server/index.js
         fi
       shell: bash
     
