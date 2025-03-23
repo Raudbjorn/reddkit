@@ -1,5 +1,10 @@
 name: Build and Release
 
+# Add this permissions block to grant necessary access
+permissions:
+  contents: write  # Needed for creating releases
+  packages: read   # If you're using GitHub Packages
+  
 on:
   push:
     branches: [ main ]
