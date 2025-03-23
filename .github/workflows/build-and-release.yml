@@ -140,8 +140,11 @@ jobs:
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           # Windows command
           powershell -Command "(Get-Content server/index.js) -replace \"clientSecret: process.env.REDDIT_CLIENT_SECRET.*\", \"clientSecret: require('../env-config').REDDIT_CLIENT_SECRET,\" | Set-Content server/index.js"
+        elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+          # macOS command (BSD sed requires '' after -i)
+          sed -i '' 's#clientSecret: process.env.REDDIT_CLIENT_SECRET.*#clientSecret: require("../env-config").REDDIT_CLIENT_SECRET,#g' server/index.js
         else
-          # Linux/Mac command - Use # as delimiter instead of /
+          # Linux command
           sed -i 's#clientSecret: process.env.REDDIT_CLIENT_SECRET.*#clientSecret: require("../env-config").REDDIT_CLIENT_SECRET,#g' server/index.js
         fi
       shell: bash
