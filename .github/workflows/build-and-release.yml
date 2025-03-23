@@ -54,6 +54,7 @@ jobs:
           name: env-file
           path: .env
           retention-days: 1
+          include-hidden-files: true  # Add this line to include dot files
 
   build:
     needs: prepare-env
