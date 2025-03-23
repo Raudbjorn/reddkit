@@ -25,7 +25,6 @@ jobs:
           echo "REDDIT_CLIENT_ID=${{ secrets.REDDIT_CLIENT_ID }}" >> .env
           echo "REDDIT_REDIRECT_URI=${{ vars.REDDIT_REDIRECT_URI }}" >> .env
           echo "REDDIT_USER_AGENT=${{ vars.REDDIT_USER_AGENT }}" >> .env
-          # Add any other required environment variables here
           
       # Upload .env file as artifact to be used in other jobs
       - name: Upload .env file
