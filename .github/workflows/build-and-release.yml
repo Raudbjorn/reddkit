@@ -100,13 +100,28 @@ jobs:
         npm ci
       continue-on-error: false
     
-    # Verify package files are in sync
-    - name: Verify package files are in sync
+    # Verify package files are in sync - use different scripts for different OSes
+    - name: Verify package files are in sync (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
       run: |
         if npm ls --package-lock-only >/dev/null 2>&1; then
           echo "✅ Package files are in sync"
         else
           echo "❌ Package files are out of sync"
+          exit 1
+        fi
+
+    # Verify package files are in sync (Windows)
+    - name: Verify package files are in sync (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        try {
+          npm ls --package-lock-only | Out-Null
+          Write-Host "✅ Package files are in sync"
+        } catch {
+          Write-Host "❌ Package files are out of sync"
           exit 1
         fi
     
