@@ -17,6 +17,16 @@ A sleek, cross-platform Reddit browser built with Electron. Browse subreddits, v
 - [Node.js](https://nodejs.org/) (v14 or higher)
 - npm (comes with Node.js)
 
+## Environment Setup
+
+1. Create a `.env` file in the project root (copy from `.env.example`)
+2. Register your app at https://www.reddit.com/prefs/apps
+3. Add your Reddit API credentials to the `.env` file:
+   - `REDDIT_CLIENT_ID`: Your Reddit application ID
+   - `REDDIT_CLIENT_SECRET`: Your Reddit application secret
+   - `REDDIT_USER_AGENT`: User agent string for API requests
+   - `REDDIT_REDIRECT_URI`: Callback URL for OAuth
+
 ### Installation
 
 1. Clone the repository:
@@ -78,6 +88,13 @@ The application follows a client-server architecture even within Electron, makin
 - The server runs locally within the Electron process
 - The app dynamically finds an available port to avoid conflicts
 - Infinite scrolling is implemented using Reddit's pagination tokens
+
+## Development Guidelines
+
+### Package Management
+- Always run `npm install` after modifying `package.json`
+- Always commit both `package.json` and `package-lock.json` together
+- Use `npm ci` for CI builds and `npm install` for development
 
 ## Contributing
 

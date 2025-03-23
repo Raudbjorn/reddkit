@@ -1,0 +1,218 @@
+name: Build and Release
+
+# Add this permissions block to grant necessary access
+permissions:
+  contents: write  # Needed for creating releases
+  packages: read   # If you're using GitHub Packages
+  
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'  # Run workflow on version tags, e.g. v1.0.0
+  pull_request:
+    branches: [ main ]
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  # Job to create .env file with secrets before building
+  prepare-env:
+    runs-on: ubuntu-latest
+    # Specify the environment here
+    environment: reddkit
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4  # Updated from v3 to v4
+      
+      # Add debugging to verify secrets and variables
+      - name: Debug values (masked for security)
+        run: |
+          echo "REDDIT_CLIENT_ID is set: ${{ secrets.REDDIT_CLIENT_ID != '' }}"
+          echo "REDDIT_CLIENT_SECRET is set: ${{ secrets.REDDIT_CLIENT_SECRET != '' }}"
+          echo "REDDIT_REDIRECT_URI is set: ${{ vars.REDDIT_REDIRECT_URI != '' }}"
+          echo "REDDIT_USER_AGENT is set: ${{ vars.REDDIT_USER_AGENT != '' }}"
+      
+      # Create .env file to be used in subsequent build jobs
+      - name: Create .env file
+        run: |
+          echo "REDDIT_CLIENT_SECRET=${{ secrets.REDDIT_CLIENT_SECRET }}" > .env
+          echo "REDDIT_CLIENT_ID=${{ secrets.REDDIT_CLIENT_ID }}" >> .env
+          echo "REDDIT_REDIRECT_URI=${{ vars.REDDIT_REDIRECT_URI || 'http://127.0.0.1:3000/authorize_callback' }}" >> .env
+          echo "REDDIT_USER_AGENT=${{ vars.REDDIT_USER_AGENT || 'ReddKit/1.0.0' }}" >> .env
+          echo "NODE_ENV=production" >> .env
+          
+          # Verify file was created with content (without showing secrets)
+          ls -la .env
+          echo "File size: $(stat -c%s .env) bytes"
+    
+      # Upload .env file as artifact to be used in other jobs
+      - name: Upload .env file
+        uses: actions/upload-artifact@v4  # Updated from v3 to v4
+        with:
+          name: env-file
+          path: .env
+          retention-days: 1
+          include-hidden-files: true  # Add this line to include dot files
+
+  build:
+    needs: prepare-env
+    # Specify the environment here too
+    environment: reddkit
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    # Checkout repository
+    - name: Checkout repository
+      uses: actions/checkout@v4  # Updated from v3 to v4
+    
+    # Setup Node.js
+    - name: Setup Node.js
+      uses: actions/setup-node@v4  # Updated from v3 to v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    # Download .env file created in prepare-env job
+    - name: Download .env file
+      uses: actions/download-artifact@v4  # Updated from v3 to v4
+      with:
+        name: env-file
+    
+    # Install dependencies - replace the current Install Dependencies step
+    - name: Install Dependencies
+      run: |
+        # First, try to update package-lock.json to match package.json
+        npm install --package-lock-only
+        # Then run npm ci for deterministic builds
+        npm ci
+      continue-on-error: false
+    
+    # Verify package files are in sync - use different scripts for different OSes
+    - name: Verify package files are in sync (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        if npm ls --package-lock-only >/dev/null 2>&1; then
+          echo "✅ Package files are in sync"
+        else
+          echo "❌ Package files are out of sync"
+          exit 1
+        fi
+
+    # Verify package files are in sync (Windows)
+    - name: Verify package files are in sync (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        try {
+          npm ls --package-lock-only | Out-Null
+          Write-Host "✅ Package files are in sync"
+        } catch {
+          Write-Host "❌ Package files are out of sync"
+          exit 1
+        }
+    
+    # Create a file to inject environment variables at build time
+    - name: Create environment injector file
+      run: |
+        # Create a small script that reads .env and exports variables
+        echo "// This file is auto-generated during build" > env-config.js
+        echo "// It injects environment variables into the app" >> env-config.js
+        echo "const fs = require('fs');" >> env-config.js
+        echo "const dotenv = require('dotenv');" >> env-config.js
+        echo "const path = require('path');" >> env-config.js
+        echo "const result = dotenv.config({ path: path.join(__dirname, '.env') });" >> env-config.js
+        echo "if (result.error) {" >> env-config.js
+        echo "  console.warn('Failed to load .env file');" >> env-config.js
+        echo "}" >> env-config.js
+        echo "// Export environment variables for use in app" >> env-config.js
+        echo "module.exports = {" >> env-config.js
+        echo "  REDDIT_CLIENT_SECRET: process.env.REDDIT_CLIENT_SECRET," >> env-config.js
+        echo "  REDDIT_CLIENT_ID: process.env.REDDIT_CLIENT_ID," >> env-config.js
+        echo "  REDDIT_REDIRECT_URI: process.env.REDDIT_REDIRECT_URI," >> env-config.js
+        echo "  REDDIT_USER_AGENT: process.env.REDDIT_USER_AGENT," >> env-config.js
+        echo "};" >> env-config.js
+        
+        # Add dotenv dependency if not present
+        npm install --save dotenv
+    
+    # Update the app code to use environment variables
+    - name: Update app code to use environment variables
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          # Windows command
+          powershell -Command "(Get-Content server/index.js) -replace \"clientSecret: process.env.REDDIT_CLIENT_SECRET.*\", \"clientSecret: require('../env-config').REDDIT_CLIENT_SECRET,\" | Set-Content server/index.js"
+        elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+          # macOS command (BSD sed requires '' after -i)
+          sed -i '' 's#clientSecret: process.env.REDDIT_CLIENT_SECRET.*#clientSecret: require("../env-config").REDDIT_CLIENT_SECRET,#g' server/index.js
+        else
+          # Linux command
+          sed -i 's#clientSecret: process.env.REDDIT_CLIENT_SECRET.*#clientSecret: require("../env-config").REDDIT_CLIENT_SECRET,#g' server/index.js
+        fi
+      shell: bash
+    
+    # Build the app for the current platform
+    - name: Build Application
+      run: npm run build:${{ matrix.platform }}
+      env:
+        # Make environment variables available during build
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_REDIRECT_URI: ${{ vars.REDDIT_REDIRECT_URI }}
+        REDDIT_USER_AGENT: ${{ vars.REDDIT_USER_AGENT }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    # Upload build artifacts
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4  # Updated from v3 to v4
+      with:
+        name: reddkit-${{ matrix.platform }}
+        path: |
+          dist/*.exe
+          dist/*.dmg
+          dist/*.AppImage
+          dist/*.deb
+          dist/*.rpm
+          dist/*.snap
+          dist/*.zip
+          dist/*.tar.gz
+        if-no-files-found: ignore
+
+  # Create GitHub release when a version tag is pushed
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4  # Updated from v3 to v4
+        
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2  # Check for newer version
+        with:
+          draft: true
+          files: |
+            reddkit-win/**/*.exe
+            reddkit-mac/**/*.dmg
+            reddkit-linux/**/*.AppImage
+            reddkit-linux/**/*.deb
+            reddkit-linux/**/*.rpm
+            reddkit-linux/**/*.snap
+            reddkit-linux/**/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

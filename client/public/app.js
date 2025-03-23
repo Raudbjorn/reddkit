@@ -33,6 +33,17 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
+
+    // Handle subreddit side-bar click delegation
+    document.getElementById('subreddit-sidebar').addEventListener('click', function(e) {
+      const subredditItem = e.target.closest('.subreddit-item');
+      if (subredditItem) {
+        const subredditName = subredditItem.getAttribute('data-name');
+        if (subredditName) {
+          selectSubreddit(subredditName);
+        }
+      }
+    });
   
   // Handle sort buttons
 document.querySelectorAll('.sort-btn').forEach(button => {
@@ -58,7 +69,7 @@ document.querySelectorAll('.sort-btn').forEach(button => {
       postsLoader.style.display = 'flex';
       
       // Load posts
-      fetch(`/api/r/${currentSubreddit}/posts?sort=${currentSort}`)
+      fetch(`http://127.0.0.1:3000/api/r/${currentSubreddit}/posts?sort=${currentSort}`)
         .then(response => {
           if (!response.ok) throw new Error(`Server responded with ${response.status}`);
           return response.json();
@@ -121,7 +132,25 @@ document.querySelectorAll('.sort-btn').forEach(button => {
  const postsListContainer = document.querySelector('.posts-list');
  postsListContainer.addEventListener('scroll', handleScroll);
 
-
+  // Check auth status and update UI accordingly
+  fetch('http://127.0.0.1:3000/api/auth-status')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('app-content').classList.toggle('not-logged-in', !data.isAuthenticated);
+      
+      // Refresh the login button to show the correct state
+      if (data.isAuthenticated) {
+        // If logged in, also refresh the subreddits sidebar
+        const sidebarEl = document.getElementById('subreddit-sidebar');
+        if (sidebarEl) {
+          sidebarEl.setAttribute('hx-trigger', 'load');
+          htmx.process(sidebarEl);
+        }
+      }
+    })
+    .catch(err => {
+      console.error('Error checking auth status:', err);
+    });
 
 });
 
@@ -154,7 +183,7 @@ function loadMorePosts() {
     loadingIndicator.textContent = 'Loading more posts...';
     postsContainer.appendChild(loadingIndicator);
     
-    fetch(`/api/r/${currentSubreddit}/posts?sort=${currentSort}&after=${afterToken}`)
+    fetch(`http://127.0.0.1:3000/api/r/${currentSubreddit}/posts?sort=${currentSort}&after=${afterToken}`)
       .then(response => {
         if (!response.ok) throw new Error(`Server responded with ${response.status}`);
         return response.json();
@@ -276,7 +305,7 @@ function loadPostDetail(permalink) {
   
   postDetailContainer.innerHTML = '<div class="loading-message">Loading post details...</div>';
   
-  fetch(`/api/post${permalink}`)
+  fetch(`http://127.0.0.1:3000/api/post${permalink}`)
     .then(response => {
       if (!response.ok) throw new Error(`Server responded with ${response.status}`);
       return response.json();
@@ -330,7 +359,7 @@ function loadComments(permalink) {
     cleanPermalink = cleanPermalink.substring(0, cleanPermalink.length - 9);
   }
   
-  fetch(`/api/post${cleanPermalink}/comments`)
+  fetch(`http://127.0.0.1:3000/api/post${cleanPermalink}/comments`)
     .then(response => {
       console.log("Comments response status:", response.status);
       if (!response.ok) {
@@ -426,3 +455,70 @@ function formatTimeAgo(timestamp) {
   if (seconds < 31536000) return Math.floor(seconds / 2592000) + ' months ago';
   return Math.floor(seconds / 31536000) + ' years ago';
 }
+
+// // Function to load a subreddit when clicked
+// function loadSubreddit(subredditName) {
+//   // Update the current subreddit display
+//   document.getElementById('current-subreddit').textContent = `r/${subredditName}`;
+  
+//   // Hide subreddit search view and show posts view
+//   document.getElementById('subreddit-view').classList.remove('show');
+//   document.getElementById('posts-view').classList.add('show');
+  
+//   // Show back button
+//   document.getElementById('back-button').style.display = 'block';
+  
+//   // Clear existing posts
+//   const postsContainer = document.getElementById('posts-container');
+//   postsContainer.innerHTML = '<div class="loading-message">Loading posts...</div>';
+  
+//   // Get the currently active sort button
+//   const activeSortBtn = document.querySelector('.sort-btn.active');
+//   const sortType = activeSortBtn ? activeSortBtn.dataset.sort : 'hot';
+  
+//   // Fetch posts for the subreddit with the active sort
+//   fetchSubredditPosts(subredditName, sortType);
+
+//   // Update URL if using history API (optional)
+//   if (history && history.pushState) {
+//     history.pushState({ subreddit: subredditName }, '', `#/r/${subredditName}`);
+//   }
+// }
+
+// // This assumes you have a function like this to fetch posts
+// function fetchSubredditPosts(subreddit, sort) {
+//   const postsContainer = document.getElementById('posts-container');
+  
+//   // Show loader
+//   document.getElementById('posts-loader').style.display = 'block';
+  
+//   // Use fetch or HTMX to load posts
+//   fetch(`http://127.0.0.1:3000/api/posts/${subreddit}?sort=${sort}`)
+//     .then(response => response.json())
+//     .then(data => {
+//       // Process and display posts
+//       displayPosts(data, postsContainer);
+//     })
+//     .catch(error => {
+//       console.error('Error fetching posts:', error);
+//       postsContainer.innerHTML = '<div class="error">Failed to load posts. Please try again.</div>';
+//     })
+//     .finally(() => {
+//       document.getElementById('posts-loader').style.display = 'none';
+//     });
+// }
+
+// // Handle back button click
+// document.getElementById('back-button').addEventListener('click', function() {
+//   // Hide posts view and show subreddit search view
+//   document.getElementById('posts-view').classList.remove('show');
+//   document.getElementById('subreddit-view').classList.add('show');
+  
+//   // Hide back button
+//   this.style.display = 'none';
+  
+//   // Update URL if using history API (optional)
+//   if (history && history.pushState) {
+//     history.pushState({}, '', '/');
+//   }
+// });
