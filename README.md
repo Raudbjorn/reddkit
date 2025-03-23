@@ -89,6 +89,13 @@ The application follows a client-server architecture even within Electron, makin
 - The app dynamically finds an available port to avoid conflicts
 - Infinite scrolling is implemented using Reddit's pagination tokens
 
+## Development Guidelines
+
+### Package Management
+- Always run `npm install` after modifying `package.json`
+- Always commit both `package.json` and `package-lock.json` together
+- Use `npm ci` for CI builds and `npm install` for development
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

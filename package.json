@@ -11,7 +11,8 @@
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "precommit": "npm install --package-lock-only && git add package-lock.json"
   },
   "author": "Sveinbjörn Geirsson <sveinbjorn@sveinbjorn.dev> (https://sveinbjorn.dev)",
   "license": "ISC",

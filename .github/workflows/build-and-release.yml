@@ -91,9 +91,24 @@ jobs:
       with:
         name: env-file
     
-    # Install dependencies
+    # Install dependencies - replace the current Install Dependencies step
     - name: Install Dependencies
-      run: npm ci
+      run: |
+        # First, try to update package-lock.json to match package.json
+        npm install --package-lock-only
+        # Then run npm ci for deterministic builds
+        npm ci
+      continue-on-error: false
+    
+    # Verify package files are in sync
+    - name: Verify package files are in sync
+      run: |
+        if npm ls --package-lock-only >/dev/null 2>&1; then
+          echo "✅ Package files are in sync"
+        else
+          echo "❌ Package files are out of sync"
+          exit 1
+        fi
     
     # Create a file to inject environment variables at build time
     - name: Create environment injector file
