@@ -6,6 +6,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const net = require('net');
+const fs = require('fs');
 
 // Import modules
 const { setupAuthRoutes } = require('./routes/auth-routes');
@@ -30,10 +31,34 @@ function findAvailablePort(startPort, callback) {
   });
 }
 
+// Explicitly set MIME types for common JavaScript files
+app.use((req, res, next) => {
+  if (req.path.endsWith('.js')) {
+    res.type('application/javascript');
+  } else if (req.path.endsWith('.css')) {
+    res.type('text/css');
+  }
+  next();
+});
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Serve specific files with explicit MIME types
+app.get('/htmx.min.js', (req, res) => {
+  const htmxPath = path.join(__dirname, '../client/public/htmx.min.js');
+  if (fs.existsSync(htmxPath)) {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(htmxPath);
+  } else {
+    console.error('htmx.min.js file not found at:', htmxPath);
+    res.status(404).send('File not found');
+  }
+});
+
+// Regular static file serving
 app.use(express.static(path.join(__dirname, '../client/public')));
 
 // Setup routes
@@ -66,9 +91,16 @@ app.use((err, req, res, next) => {
 
 // Server startup
 function startServer(callback) {
+  // Check for critical files before starting
+  const htmxPath = path.join(__dirname, '../client/public/htmx.min.js');
+  if (!fs.existsSync(htmxPath)) {
+    console.warn(`WARNING: htmx.min.js not found at ${htmxPath}`);
+  }
+
   findAvailablePort(3000, (port) => {
     server = app.listen(port, '127.0.0.1', () => {
       console.log(`Server running on http://127.0.0.1:${port}`);
+      console.log(`Static files served from: ${path.join(__dirname, '../client/public')}`);
       callback(port);
     });
   });
