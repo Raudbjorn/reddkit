@@ -1,23 +1,8 @@
-const { 
-  getSubscribedSubreddits, 
-  fetchFromReddit 
-} = require('../reddit');
-
-const { 
-  formatSubscribers, 
-  formatNumber, 
-  formatDate,
-  truncateText 
-} = require('../formatters');
-
-const { 
-  authStore, 
-  refreshAccessToken, 
-  getAccessToken 
-} = require('../auth');
-
 const axios = require('axios');
 const path = require('path');
+const { fetchFromReddit } = require('../reddit');
+const { truncateText } = require('../utils/formatting');
+const authStore = require('../auth/auth-store');
 
 function setupSubredditRoutes(app) {
   // Get subreddits based on search query
@@ -31,36 +16,56 @@ function setupSubredditRoutes(app) {
         });
       }
 
-      // Get stored credentials
-      const accessToken = global.electronApp ? 
-        global.electronApp.getStoredValue('accessToken') : 
-        process.env.REDDIT_ACCESS_TOKEN;
-      
-      if (!accessToken) {
-        console.error('No access token available for Reddit API');
-        return res.status(401).json({ 
-          error: 'Authentication required',
-          redirectTo: '/login'
-        });
-      }
-
       console.log(`Searching subreddits for: "${q}"`);
       
-      // Make request to Reddit API
-      const response = await axios({
-        method: 'get',
-        url: `https://oauth.reddit.com/subreddits/search.json`,
-        params: {
-          q,
-          limit: 25,
-          include_over_18: false
-        },
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'User-Agent': 'redDKit/1.0.0'
-        },
-        timeout: 10000 // 10 seconds timeout
-      });
+      // Try to get stored credentials, but don't require them
+      const tokens = authStore?.getTokens?.();
+      const accessToken = tokens?.accessToken || 
+                         (global.electronApp ? global.electronApp.getStoredValue('accessToken') : null) || 
+                         process.env.REDDIT_ACCESS_TOKEN;
+
+      let response;
+      
+      // Try authenticated search if we have a token
+      if (accessToken) {
+        try {
+          response = await axios({
+            method: 'get',
+            url: `https://oauth.reddit.com/subreddits/search.json`,
+            params: {
+              q,
+              limit: 25,
+              include_over_18: false
+            },
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'User-Agent': 'redDKit/1.0.5 (by /u/reddkit_agent)'
+            },
+            timeout: 10000 // 10 seconds timeout
+          });
+        } catch (authError) {
+          console.log('Authenticated search failed, falling back to public API:', authError.message);
+        }
+      }
+      
+      // Fall back to public API if authenticated search failed or there's no token
+      if (!response || !response.data) {
+        console.log('Using public API for subreddit search');
+        response = await axios({
+          method: 'get',
+          url: `https://www.reddit.com/subreddits/search.json`,
+          params: {
+            q,
+            limit: 25,
+            include_over_18: false,
+            raw_json: 1
+          },
+          headers: {
+            'User-Agent': 'redDKit/1.0.5'
+          },
+          timeout: 10000
+        });
+      }
 
       // Transform the data for our frontend
       const subreddits = response.data.data.children.map(child => ({
@@ -94,7 +99,7 @@ function setupSubredditRoutes(app) {
         console.error(`Reddit API error: ${error.response.status}`, error.response.data);
         return res.status(error.response.status).json({ 
           error: `Reddit API error: ${error.response.status}`,
-          details: error.response.data
+          details: JSON.stringify(error.response.data)
         });
       } else if (error.request) {
         // The request was made but no response was received
@@ -455,6 +460,7 @@ function setupSubredditRoutes(app) {
         <div class="subreddit-info">
           <h3>r/${sub.name}</h3>
           <p>${sub.subscribers?.toLocaleString() || '0'} members</p>
+          <p class="subreddit-description">${truncateText(sub.description || '', 100)}</p>
         </div>
       </div>
     `).join('');
