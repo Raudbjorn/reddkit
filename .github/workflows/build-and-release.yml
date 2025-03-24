@@ -116,7 +116,7 @@ jobs:
         } catch {
           Write-Host "❌ Package files are out of sync"
           exit 1
-        fi
+        }
     
     # Simplified environment file with only user agent
     - name: Create environment injector file

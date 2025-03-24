@@ -5,9 +5,9 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "start:dev": "NODE_ENV=development electron . --disable-gpu-sandbox",
+    "start:dev": "cross-env NODE_ENV=development electron . --disable-gpu-sandbox",
     "build": "electron-builder",
-    "build:win": "electron-builder --win",
+    "build:win": "electron-builder --win --x64",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "lint": "eslint .",
@@ -19,7 +19,8 @@
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.6.4",
-    "eslint": "^9.23.0"
+    "eslint": "^9.23.0",
+    "cross-env": "^7.0.3"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -39,7 +40,18 @@
       "main.js",
       "server/**/*",
       "client/**/*",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "src/**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,__pycache__,thumbs.db,.gitignore,.gitattributes}",
+      "!**/{eslint,prettier}",
+      "!**/{.eslintrc,.prettierrc,babel.config.js}"
     ],
     "win": {
       "target": [
