@@ -17,13 +17,6 @@ A sleek, cross-platform Reddit browser built with Electron. Browse subreddits, v
 - [Node.js](https://nodejs.org/) (v14 or higher)
 - npm (comes with Node.js)
 
-## Environment Setup
-
-1. Create a `.env` file in the project root (copy from `.env.example`)
-2. Authentication is handled by an OAuth proxy service at auth.sveinbjorn.dev, so you don't need to register your own Reddit application.
-3. Add your Reddit API credentials to the `.env` file:
-   - `REDDIT_USER_AGENT`: User agent string for API requests
-   - `REDDIT_REDIRECT_URI`: Callback URL for OAuth
 
 ### Installation
 
@@ -69,6 +62,32 @@ Built packages will be available in the `dist` directory.
 - `client/public/` - Client-side HTML, CSS, and JS
 - `client/public/app.js` - Main client-side application logic
 - `client/public/styles.css` - Application styling
+
+## Authentication Architecture
+
+ReddKit uses a dedicated OAuth proxy service for Reddit authentication, which:
+
+1. Securely manages Reddit API credentials
+2. Handles the OAuth 2.0 flow with Reddit
+3. Provides token exchange and refresh capabilities
+4. Keeps sensitive credentials out of the client application
+
+### How Authentication Works
+
+1. When you click "Login", ReddKit redirects to the proxy service
+2. The proxy handles the Reddit OAuth flow
+3. After successful authentication, the proxy generates a temporary token
+4. This token is exchanged for Reddit access tokens via a secure server-to-server request
+5. ReddKit stores the encrypted tokens locally for subsequent API calls
+
+### OAuth Proxy Repository
+
+The proxy code is available at [github.com/Raudbjorn/reddit-oauth-proxy](https://github.com/Raudbjorn/reddit-oauth-proxy.git) and can be self-hosted if desired. By default, ReddKit uses the instance running at `auth.sveinbjorn.dev`.
+
+This architecture improves security by:
+- Keeping Reddit API secrets out of the client application
+- Handling token refresh securely
+- Preventing exposure of credentials in browser history or logs
 
 ## How It Works
 
