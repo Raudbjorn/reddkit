@@ -16,55 +16,101 @@ const {
   getAccessToken 
 } = require('../auth');
 
+const axios = require('axios');
+const path = require('path');
+
 function setupSubredditRoutes(app) {
-  // Subreddit search
+  // Get subreddits based on search query
   app.get('/api/subreddits/search', async (req, res) => {
-    const query = req.query.q;
-    const after = req.query.after || '';
-    
-    if (!query) {
-      return res.status(400).json({ error: 'Missing search query' });
-    }
-    
-    const tokens = authStore.getTokens();
-    
     try {
-      // Use authenticated search if logged in, otherwise anonymous
-      const baseUrl = 'https://oauth.reddit.com/subreddits/search';
-      const searchUrl = new URL(baseUrl);
+      const { q } = req.query;
       
-      // Add query parameters
-      searchUrl.searchParams.append('q', query);
-      searchUrl.searchParams.append('limit', '25');
-      if (after) {
-        searchUrl.searchParams.append('after', after);
+      if (!q || q.trim() === '') {
+        return res.status(400).json({ 
+          error: 'Search query is required' 
+        });
       }
+
+      // Get stored credentials
+      const accessToken = global.electronApp ? 
+        global.electronApp.getStoredValue('accessToken') : 
+        process.env.REDDIT_ACCESS_TOKEN;
       
-      const headers = {
-        'User-Agent': process.env.REDDIT_USER_AGENT || 'ReddKit/1.0.0'
-      };
-      
-      // Add authorization header if authenticated
-      if (tokens && tokens.accessToken) {
-        headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+      if (!accessToken) {
+        console.error('No access token available for Reddit API');
+        return res.status(401).json({ 
+          error: 'Authentication required',
+          redirectTo: '/login'
+        });
       }
+
+      console.log(`Searching subreddits for: "${q}"`);
       
-      const response = await fetch(searchUrl.toString(), { headers });
-      
-      if (!response.ok) {
-        throw new Error(`Reddit API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Format the response
-      res.json({
-        subreddits: data.data.children.map(child => child.data),
-        after: data.data.after || null
+      // Make request to Reddit API
+      const response = await axios({
+        method: 'get',
+        url: `https://oauth.reddit.com/subreddits/search.json`,
+        params: {
+          q,
+          limit: 25,
+          include_over_18: false
+        },
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'User-Agent': 'redDKit/1.0.0'
+        },
+        timeout: 10000 // 10 seconds timeout
       });
+
+      // Transform the data for our frontend
+      const subreddits = response.data.data.children.map(child => ({
+        id: child.data.id,
+        name: child.data.display_name,
+        title: child.data.title,
+        description: child.data.public_description,
+        subscribers: child.data.subscribers,
+        icon: child.data.icon_img || child.data.community_icon || '',
+        url: child.data.url,
+        created: child.data.created_utc,
+        nsfw: child.data.over18
+      }));
+
+      // Determine if this is an htmx request
+      const isHtmx = req.headers['hx-request'] === 'true';
+      
+      if (isHtmx) {
+        // Generate HTML for htmx
+        const html = generateSubredditListHtml(subreddits, q);
+        return res.send(html);
+      } else {
+        // Return JSON for regular API calls
+        return res.json(subreddits);
+      }
     } catch (error) {
-      console.error('Subreddit search error:', error);
-      res.status(500).json({ error: error.message });
+      console.error('Error searching subreddits:', error.message);
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        console.error(`Reddit API error: ${error.response.status}`, error.response.data);
+        return res.status(error.response.status).json({ 
+          error: `Reddit API error: ${error.response.status}`,
+          details: error.response.data
+        });
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('No response received from Reddit API');
+        return res.status(503).json({ 
+          error: 'Reddit API is unavailable',
+          details: 'No response received from server'
+        });
+      } else {
+        // Something happened in setting up the request
+        console.error('Error setting up request:', error.message);
+        return res.status(500).json({ 
+          error: 'Internal server error',
+          details: process.env.NODE_ENV === 'development' ? error.message : 'Unable to process request'
+        });
+      }
     }
   });
 
@@ -389,6 +435,30 @@ function setupSubredditRoutes(app) {
       `);
     }
   });
+
+  // Helper function to generate HTML for subreddit list
+  function generateSubredditListHtml(subreddits, query) {
+    if (subreddits.length === 0) {
+      return `
+        <div class="no-results">
+          <p>No subreddits found matching "${query}"</p>
+        </div>
+      `;
+    }
+
+    return subreddits.map(sub => `
+      <div class="subreddit-item" onclick="selectSubreddit('${sub.name}')" data-subreddit="${sub.name}">
+        <div class="subreddit-icon">
+          ${sub.icon ? `<img src="${sub.icon}" alt="${sub.name}" onerror="this.onerror=null; this.src='/images/default-subreddit-icon.png';">` : 
+          `<div class="default-icon">${sub.name.charAt(0).toUpperCase()}</div>`}
+        </div>
+        <div class="subreddit-info">
+          <h3>r/${sub.name}</h3>
+          <p>${sub.subscribers?.toLocaleString() || '0'} members</p>
+        </div>
+      </div>
+    `).join('');
+  }
 }
 
 module.exports = { setupSubredditRoutes };
