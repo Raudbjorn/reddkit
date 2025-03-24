@@ -1,6 +1,8 @@
 import { appState, setCurrentSubreddit, setCurrentSort, setCurrentSearch } from './state.js';
-import { fetchSubreddits, fetchPosts } from './api.js';
-import { renderPosts, appendPosts, renderPostDetail, loadComments, appendSubreddits } from './renderers.js';
+import { fetchSubreddits, fetchPosts, vote, toggleSubscribe } from './api.js';
+import { renderPosts, appendPosts, renderPostDetail, loadComments, appendSubreddits, addSubscribeButton } from './renderers.js';
+import { setupStatsPanel } from './subreddit-stats.js';
+import { formatNumber } from './utils.js';
 
 // Set up all event listeners
 export function setupEventListeners() {
@@ -127,6 +129,27 @@ export function setupEventListeners() {
       handleSubredditSearch();
     });
   }
+
+  // Add event delegation for voting buttons
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.vote-arrow')) {
+      handleVoteClick(e);
+    }
+  });
+
+  // Set up stats panel toggle
+  setupStatsPanel();
+  
+  // Update selectSubreddit function to add subscribe button
+  const originalSelectSubreddit = window.selectSubreddit;
+  window.selectSubreddit = function(name) {
+    originalSelectSubreddit(name);
+    
+    // Add the subscribe button after loading the subreddit
+    setTimeout(() => {
+      addSubscribeButton(name);
+    }, 500);
+  };
 }
 
 // Handle scroll event for posts infinite scrolling
@@ -168,6 +191,9 @@ export function selectSubreddit(name) {
   document.getElementById('subreddit-view').classList.remove('show');
   document.getElementById('posts-view').classList.add('show');
   document.getElementById('back-button').style.display = 'block';
+  
+  // Load subreddit stats
+  loadSubredditStats(name);
   
   // Load the default "hot" posts
   document.querySelector('.sort-btn[data-sort="hot"]').click();
@@ -290,4 +316,130 @@ export function loadMoreSubreddits() {
       loadingIndicator.className = 'loading-error';
       appState.isLoadingMoreSubreddits = false;
     });
+}
+
+// Handle voting
+export async function handleVoteClick(e) {
+  const voteButton = e.target.closest('.vote-arrow');
+  if (!voteButton) return;
+  
+  const postId = voteButton.dataset.id;
+  const direction = voteButton.dataset.vote; // 'up' or 'down'
+  const scoreElement = voteButton.parentElement.querySelector('.post-score');
+  
+  // Remove active class from both buttons
+  const upvoteButton = voteButton.parentElement.querySelector('.upvote');
+  const downvoteButton = voteButton.parentElement.querySelector('.downvote');
+  
+  // Check if this button is already active (clicking again to undo)
+  const isActive = voteButton.classList.contains('active');
+  
+  // Remove active classes and score modifications
+  upvoteButton.classList.remove('active');
+  downvoteButton.classList.remove('active');
+  scoreElement.classList.remove('upvoted', 'downvoted');
+  
+  let dir = 0; // 0 = remove vote
+  
+  // If not already active, set the new vote
+  if (!isActive) {
+    voteButton.classList.add('active');
+    scoreElement.classList.add(direction === 'up' ? 'upvoted' : 'downvoted');
+    dir = direction === 'up' ? 1 : -1;
+  }
+  
+  // Get current score
+  const currentScore = parseInt(scoreElement.dataset.score || 0);
+  
+  // Update UI immediately for responsiveness
+  let newScore = currentScore;
+  if (dir === 1) newScore++;
+  if (dir === -1) newScore--;
+  
+  scoreElement.textContent = formatNumber(newScore);
+  
+  try {
+    // Send vote to server
+    await vote(postId, dir);
+    
+    // Show success message
+    showPopup(`${dir === 0 ? 'Vote removed' : dir === 1 ? 'Upvoted' : 'Downvoted'}`);
+    
+    // Update the score attribute to match new value
+    scoreElement.dataset.score = newScore;
+  } catch (error) {
+    console.error('Error voting:', error);
+    
+    // Revert UI if there was an error
+    upvoteButton.classList.remove('active');
+    downvoteButton.classList.remove('active');
+    scoreElement.classList.remove('upvoted', 'downvoted');
+    scoreElement.textContent = formatNumber(currentScore);
+    
+    showPopup('Error: Vote failed', true);
+  }
+}
+
+// Handle subscribe button click
+export async function handleSubscribeClick(e) {
+  const button = e.currentTarget;
+  const subreddit = button.dataset.subreddit;
+  const action = button.dataset.action; // 'sub' or 'unsub'
+  
+  try {
+    // Send subscription update to server
+    await toggleSubscribe(subreddit, action);
+    
+    // Update button state
+    if (action === 'sub') {
+      button.dataset.action = 'unsub';
+      button.classList.add('subscribed');
+      button.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M19 13H5v-2h14v2z"/>
+        </svg>
+        Joined
+      `;
+      showPopup(`Joined r/${subreddit}`);
+    } else {
+      button.dataset.action = 'sub';
+      button.classList.remove('subscribed');
+      button.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+        </svg>
+        Join
+      `;
+      showPopup(`Left r/${subreddit}`);
+    }
+  } catch (error) {
+    console.error('Error updating subscription:', error);
+    showPopup('Error updating subscription', true);
+  }
+}
+
+// Show a popup notification
+export function showPopup(message, isError = false) {
+  // Remove any existing popups
+  const existingPopup = document.querySelector('.action-popup');
+  if (existingPopup) {
+    existingPopup.remove();
+  }
+  
+  // Create new popup
+  const popup = document.createElement('div');
+  popup.className = `action-popup ${isError ? 'error' : ''}`;
+  popup.textContent = message;
+  
+  // Add to document
+  document.body.appendChild(popup);
+  
+  // Trigger animation
+  setTimeout(() => popup.classList.add('show'), 10);
+  
+  // Remove after a delay
+  setTimeout(() => {
+    popup.classList.remove('show');
+    setTimeout(() => popup.remove(), 300); // Wait for fade-out animation
+  }, 2000);
 }

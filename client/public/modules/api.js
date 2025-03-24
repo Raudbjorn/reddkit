@@ -73,3 +73,66 @@ export async function fetchComments(permalink) {
   
   return response.json();
 }
+
+// Fetch comprehensive subreddit statistics
+export async function fetchSubredditStats(subreddit) {
+    const response = await fetch(`${API_BASE_URL}/api/subreddit/${subreddit}/stats`);
+    
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}`);
+    }
+    
+    return response.json();
+  }
+
+// Vote on a post or comment
+export async function vote(id, direction) {
+  const dir = direction === 'up' ? 1 : direction === 'down' ? -1 : 0;
+  
+  const response = await fetch(`${API_BASE_URL}/api/vote`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ id, dir })
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `Vote failed with status: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+// Subscribe or unsubscribe from a subreddit
+export async function toggleSubscribe(subredditName, action) {
+  const response = await fetch(`${API_BASE_URL}/api/subreddit/subscribe`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ 
+      subreddit: subredditName, 
+      action: action // 'sub' or 'unsub'
+    })
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `Subscription action failed with status: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+// Get subscription status for a subreddit
+export async function getSubscriptionStatus(subredditName) {
+  const response = await fetch(`${API_BASE_URL}/api/subreddit/${subredditName}/subscription`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to get subscription status: ${response.status}`);
+  }
+  
+  return response.json();
+}
