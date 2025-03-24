@@ -23,8 +23,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (isAuthenticated) {
         const sidebarEl = document.getElementById('subreddit-sidebar');
         if (sidebarEl) {
-          sidebarEl.setAttribute('hx-trigger', 'load');
-          htmx.process(sidebarEl);
+          // Force a fresh reload of the sidebar
+          htmx.ajax('GET', '/fragments/subreddits', {target: '#subreddit-sidebar', swap: 'innerHTML'});
         }
       }
     })

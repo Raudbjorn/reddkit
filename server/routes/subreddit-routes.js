@@ -1,7 +1,7 @@
 const axios = require('axios');
 const path = require('path');
 const { fetchFromReddit } = require('../reddit');
-const { truncateText } = require('../utils/formatting');
+const { formatSubscribers, formatNumber, formatDate, truncateText } = require('../utils/formatting');
 const authStore = require('../auth/auth-store');
 
 function setupSubredditRoutes(app) {
@@ -19,10 +19,16 @@ function setupSubredditRoutes(app) {
       console.log(`Searching subreddits for: "${q}"`);
       
       // Try to get stored credentials, but don't require them
-      const tokens = authStore?.getTokens?.();
-      const accessToken = tokens?.accessToken || 
-                         (global.electronApp ? global.electronApp.getStoredValue('accessToken') : null) || 
-                         process.env.REDDIT_ACCESS_TOKEN;
+      let tokens, accessToken;
+      try {
+        tokens = authStore?.getTokens?.();
+        accessToken = tokens?.accessToken || 
+                     (global.electronApp ? global.electronApp.getStoredValue('accessToken') : null) || 
+                     process.env.REDDIT_ACCESS_TOKEN;
+      } catch (authError) {
+        // Just silently continue without authentication - no need to log this
+        // console.log('Could not access auth store:', authError.message);
+      }
 
       let response;
       
@@ -39,7 +45,7 @@ function setupSubredditRoutes(app) {
             },
             headers: {
               'Authorization': `Bearer ${accessToken}`,
-              'User-Agent': 'redDKit/1.0.5 (by /u/reddkit_agent)'
+              'User-Agent': 'redDKit/1.0.5'
             },
             timeout: 10000 // 10 seconds timeout
           });
@@ -67,26 +73,39 @@ function setupSubredditRoutes(app) {
         });
       }
 
-      // Transform the data for our frontend
-      const subreddits = response.data.data.children.map(child => ({
-        id: child.data.id,
-        name: child.data.display_name,
-        title: child.data.title,
-        description: child.data.public_description,
-        subscribers: child.data.subscribers,
-        icon: child.data.icon_img || child.data.community_icon || '',
-        url: child.data.url,
-        created: child.data.created_utc,
-        nsfw: child.data.over18
-      }));
+      // Transform the data for our frontend - use safe access patterns
+      const children = response?.data?.data?.children || [];
+      const subreddits = children.map(child => {
+        const data = child.data || {};
+        return {
+          id: data.id || '',
+          name: data.display_name || '',
+          title: data.title || '',
+          description: data.public_description || '',
+          subscribers: data.subscribers || 0,
+          icon: data.icon_img || data.community_icon || '',
+          url: data.url || '',
+          created: data.created_utc || 0,
+          nsfw: data.over18 || false
+        };
+      });
 
       // Determine if this is an htmx request
       const isHtmx = req.headers['hx-request'] === 'true';
       
       if (isHtmx) {
-        // Generate HTML for htmx
-        const html = generateSubredditListHtml(subreddits, q);
-        return res.send(html);
+        try {
+          // Generate HTML for htmx
+          const html = generateSubredditListHtml(subreddits, q);
+          return res.send(html);
+        } catch (htmlError) {
+          console.error('Error generating HTML:', htmlError);
+          return res.status(500).send(`
+            <div class="error-message">
+              Error generating subreddit list: ${htmlError.message}
+            </div>
+          `);
+        }
       } else {
         // Return JSON for regular API calls
         return res.json(subreddits);
@@ -94,28 +113,12 @@ function setupSubredditRoutes(app) {
     } catch (error) {
       console.error('Error searching subreddits:', error.message);
       
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        console.error(`Reddit API error: ${error.response.status}`, error.response.data);
-        return res.status(error.response.status).json({ 
-          error: `Reddit API error: ${error.response.status}`,
-          details: JSON.stringify(error.response.data)
-        });
-      } else if (error.request) {
-        // The request was made but no response was received
-        console.error('No response received from Reddit API');
-        return res.status(503).json({ 
-          error: 'Reddit API is unavailable',
-          details: 'No response received from server'
-        });
-      } else {
-        // Something happened in setting up the request
-        console.error('Error setting up request:', error.message);
-        return res.status(500).json({ 
-          error: 'Internal server error',
-          details: process.env.NODE_ENV === 'development' ? error.message : 'Unable to process request'
-        });
-      }
+      // Simplified error handling
+      return res.status(500).json({ 
+        error: 'Failed to search subreddits', 
+        message: error.message,
+        details: error.stack
+      });
     }
   });
 
@@ -454,13 +457,14 @@ function setupSubredditRoutes(app) {
     return subreddits.map(sub => `
       <div class="subreddit-item" onclick="selectSubreddit('${sub.name}')" data-subreddit="${sub.name}">
         <div class="subreddit-icon">
-          ${sub.icon ? `<img src="${sub.icon}" alt="${sub.name}" onerror="this.onerror=null; this.src='/images/default-subreddit-icon.png';">` : 
-          `<div class="default-icon">${sub.name.charAt(0).toUpperCase()}</div>`}
+          ${sub.icon ? 
+            '<img src="' + sub.icon + '" alt="' + sub.name + '" onerror="this.onerror=null; this.src=\'/images/default-subreddit-icon.png\'; this.classList.add(\'fallback-icon\');">' : 
+            '<div class="default-icon">' + sub.name.charAt(0).toUpperCase() + '</div>'}
         </div>
         <div class="subreddit-info">
           <h3>r/${sub.name}</h3>
-          <p>${sub.subscribers?.toLocaleString() || '0'} members</p>
-          <p class="subreddit-description">${truncateText(sub.description || '', 100)}</p>
+          <p>${sub.subscribers ? formatSubscribers(sub.subscribers) : '0'} members</p>
+          <p class="subreddit-description">${truncateText((sub.description || ''), 100)}</p>
         </div>
       </div>
     `).join('');

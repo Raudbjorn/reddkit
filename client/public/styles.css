@@ -1318,3 +1318,83 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* Add these styles to your CSS file */
+
+/* Hide sidebar when not logged in */
+body.user-not-logged-in #subreddit-sidebar {
+  display: none;
+}
+
+/* Adjust main content area when sidebar is hidden */
+body.user-not-logged-in .main-content {
+  margin-left: 0;
+  width: 100%;
+}
+
+/* For responsive layouts */
+@media (max-width: 768px) {
+  body.user-not-logged-in .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* Add these rules to constrain sidebar image sizes */
+.sidebar .subreddit-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  overflow: hidden;
+  border-radius: 50%;
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f0f0;
+}
+
+.sidebar .subreddit-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.sidebar .default-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: #0079d3;
+  border-radius: 50%;
+}
+
+/* Make the subreddit list items more compact */
+.sidebar .sidebar-subreddit {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sidebar .sidebar-subreddit a {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--text-color);
+  width: 100%;
+}
+
+/* Add some styling for active/hover states */
+.sidebar .sidebar-subreddit:hover {
+  background-color: var(--hover-background);
+}
+
+.sidebar .sidebar-subreddit.active {
+  background-color: var(--selected-background);
+}

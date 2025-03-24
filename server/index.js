@@ -31,35 +31,46 @@ function findAvailablePort(startPort, callback) {
   });
 }
 
-// Explicitly set MIME types for common JavaScript files
+// Set strict MIME types for JavaScript and CSS files
 app.use((req, res, next) => {
-  if (req.path.endsWith('.js')) {
+  const url = req.url.toLowerCase();
+  if (url.endsWith('.js')) {
     res.type('application/javascript');
-  } else if (req.path.endsWith('.css')) {
+  } else if (url.endsWith('.css')) {
     res.type('text/css');
   }
   next();
 });
 
-// Middleware
+// Handle CORS
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve specific files with explicit MIME types
+// Dedicated routes for critical files with explicit MIME types
 app.get('/htmx.min.js', (req, res) => {
   const htmxPath = path.join(__dirname, '../client/public/htmx.min.js');
+  
+  // Check if file exists first
   if (fs.existsSync(htmxPath)) {
     res.setHeader('Content-Type', 'application/javascript');
     res.sendFile(htmxPath);
   } else {
-    console.error('htmx.min.js file not found at:', htmxPath);
+    console.error('htmx.min.js not found at:', htmxPath);
     res.status(404).send('File not found');
   }
 });
 
 // Regular static file serving
-app.use(express.static(path.join(__dirname, '../client/public')));
+app.use(express.static(path.join(__dirname, '../client/public'), {
+  setHeaders: function(res, path) {
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    }
+  }
+}));
 
 // Setup routes
 setupAuthRoutes(app);
@@ -91,10 +102,24 @@ app.use((err, req, res, next) => {
 
 // Server startup
 function startServer(callback) {
+  // Add more detailed logging
+  console.log('Starting server with Node version:', process.version);
+  console.log('Environment:', process.env.NODE_ENV || 'development');
+  
   // Check for critical files before starting
-  const htmxPath = path.join(__dirname, '../client/public/htmx.min.js');
-  if (!fs.existsSync(htmxPath)) {
-    console.warn(`WARNING: htmx.min.js not found at ${htmxPath}`);
+  const criticalFiles = [
+    path.join(__dirname, '../client/public/htmx.min.js'),
+    path.join(__dirname, '../client/public/index.html'),
+    path.join(__dirname, '../client/public/styles.css'),
+    path.join(__dirname, 'utils/formatting.js')  // Check if this file exists
+  ];
+  
+  for (const file of criticalFiles) {
+    if (!fs.existsSync(file)) {
+      console.warn(`WARNING: Critical file not found: ${file}`);
+    } else {
+      console.log(`Found file: ${file}`);
+    }
   }
 
   findAvailablePort(3000, (port) => {

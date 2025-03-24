@@ -103,7 +103,7 @@ function setupAuthRoutes(app) {
     }
   });
   
-  // Login button fragment
+  // Modify the existing /fragments/login-button endpoint
   app.get('/fragments/login-button', (req, res) => {
     // Check if user is logged in from persistent storage
     const tokens = authStore.getTokens();
@@ -128,6 +128,20 @@ function setupAuthRoutes(app) {
     const updateScript = `
       <script>
         document.getElementById('app-content').classList.toggle('not-logged-in', ${!isLoggedIn});
+        document.body.classList.toggle('user-not-logged-in', ${!isLoggedIn});
+        
+        // Handle sidebar visibility
+        if (${!isLoggedIn}) {
+          const sidebarElement = document.getElementById('subreddit-sidebar');
+          if (sidebarElement) {
+            sidebarElement.style.display = 'none';
+          }
+        } else {
+          const sidebarElement = document.getElementById('subreddit-sidebar');
+          if (sidebarElement) {
+            sidebarElement.style.display = 'block';
+          }
+        }
       </script>
     `;
     
@@ -145,6 +159,163 @@ function setupAuthRoutes(app) {
       </div>
       ${updateScript}
     `);
+  });
+
+  // Replace the existing /fragments/subreddits endpoint with this version
+  app.get('/fragments/subreddits', async (req, res) => {
+    const tokens = authStore.getTokens();
+    
+    if (!tokens) {
+      // Return empty div with a class that can be targeted by CSS
+      return res.send(`
+        <div class="sidebar-empty" id="sidebar-content"></div>
+        <script>
+          // Add class to body or main container to indicate logged out state
+          document.body.classList.add('user-not-logged-in');
+          
+          // Find the sidebar element
+          const sidebarElement = document.getElementById('subreddit-sidebar');
+          if (sidebarElement) {
+            // Hide the sidebar
+            sidebarElement.style.display = 'none';
+          }
+        </script>
+      `);
+    }
+  
+    try {
+      // Try to refresh token if expired
+      if (tokens.expiresAt < Date.now()) {
+        const newTokens = await refreshAccessToken(tokens);
+        if (newTokens) {
+          authStore.setTokens(newTokens);
+        } else {
+          // If refresh fails, hide sidebar
+          authStore.clearTokens();
+          return res.send(`
+            <div class="sidebar-empty" id="sidebar-content"></div>
+            <script>
+              document.body.classList.add('user-not-logged-in');
+              const sidebarElement = document.getElementById('subreddit-sidebar');
+              if (sidebarElement) {
+                sidebarElement.style.display = 'none';
+              }
+            </script>
+          `);
+        }
+      }
+  
+      // Fetch the user's subscribed subreddits using axios instead of fetch for better compatibility
+      const axios = require('axios');
+      const response = await axios({
+        method: 'get',
+        url: 'https://oauth.reddit.com/subreddits/mine/subscriber.json',
+        params: { limit: 100 },
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+          'User-Agent': 'redDKit/1.0.6'
+        }
+      });
+
+      // Extract and format subreddit data
+      const subreddits = response.data.data.children.map(child => ({
+        name: child.data.display_name,
+        url: child.data.url,
+        icon: child.data.community_icon || child.data.icon_img || '',
+        subscribers: child.data.subscribers
+      }));
+  
+      // Sort alphabetically
+      subreddits.sort((a, b) => a.name.localeCompare(b.name));
+  
+      // Build HTML for the sidebar
+      const subredditList = subreddits.map(sub => `
+        <div class="sidebar-subreddit" data-subreddit="${sub.name}">
+          <a href="javascript:void(0)" onclick="loadSubreddit('${sub.name}')" class="subreddit-link">
+            <div class="subreddit-icon">
+              ${sub.icon ? 
+                '<img src="' + sub.icon.replace(/\?.*$/, '').replace('&amp;', '&') + '" alt="' + sub.name + '" onerror="this.onerror=null; this.src=\'/images/default-icon.png\'; this.classList.add(\'fallback-icon\');">' : 
+                '<div class="default-icon">' + sub.name.charAt(0).toUpperCase() + '</div>'
+              }
+            </div>
+            <div class="subreddit-name">r/${sub.name}</div>
+          </a>
+        </div>
+      `).join('');
+  
+      // Return the complete sidebar HTML
+      return res.send(`
+        <div class="sidebar-inner">
+          <div class="sidebar-header">
+            <h3>My Subreddits</h3>
+          </div>
+          <div class="sidebar-content">
+            <div class="subreddit-search">
+              <input type="text" id="subreddit-search" placeholder="Search subreddits..." 
+                    onkeyup="filterSubreddits(this.value)">
+            </div>
+            <div class="subreddit-list">
+              ${subredditList}
+            </div>
+          </div>
+          <script>
+            function filterSubreddits(query) {
+              query = query.toLowerCase();
+              document.querySelectorAll('.sidebar-subreddit').forEach(item => {
+                const subredditName = item.dataset.subreddit.toLowerCase();
+                if (subredditName.includes(query)) {
+                  item.style.display = 'block';
+                } else {
+                  item.style.display = 'none';
+                }
+              });
+            }
+            
+            function loadSubreddit(name) {
+              htmx.ajax('GET', '/r/' + name, {
+                target: '#main-content',
+                swap: 'innerHTML'
+              });
+              
+              // Update active status
+              document.querySelectorAll('.sidebar-subreddit').forEach(item => {
+                item.classList.remove('active');
+              });
+              
+              const activeElement = document.querySelector('.sidebar-subreddit[data-subreddit="' + name + '"]');
+              
+              if (activeElement) {
+                activeElement.classList.add('active');
+              }
+              
+              // Update URL without reloading page
+              history.pushState(null, null, '/r/' + name);
+            }
+            
+            // Remove loading state
+            document.body.classList.remove('user-not-logged-in');
+            document.getElementById('subreddit-sidebar').style.display = 'block';
+          </script>
+        </div>
+      `);
+    } catch (error) {
+      console.error("Error loading subscribed subreddits:", error);
+      return res.send(`
+        <div class="sidebar-inner">
+          <div class="sidebar-header">
+            <h3>Error</h3>
+          </div>
+          <div class="sidebar-content">
+            <div class="error-message">
+              <p>Could not load subreddits: ${error.message}</p>
+              <button onclick="htmx.ajax('GET', '/fragments/subreddits', {target: '#subreddit-sidebar', swap: 'innerHTML'})">
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      `);
+    }
   });
 }
 

@@ -12,6 +12,18 @@ global.electronApp = app;
 let mainWindow;
 let serverInstance;
 
+// Add this before creating the BrowserWindow
+
+// Configure Electron for Linux environments
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
+  app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder');
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+  
+  // Fix for X11 rendering issues
+  app.disableHardwareAcceleration();
+}
+
 async function createWindow(port) {
   // Get stored window dimensions
   let windowConfig = {
@@ -56,7 +68,7 @@ async function createWindow(port) {
   // if (process.env.NODE_ENV === 'development') {
   //   mainWindow.webContents.openDevTools();
   // }
-
+  mainWindow.webContents.openDevTools();
   // Save window size and position when changed
   mainWindow.on('resize', saveWindowConfig);
   mainWindow.on('move', saveWindowConfig);
