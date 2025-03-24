@@ -1,6 +1,6 @@
 {
   "name": "reddkit",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A cross-platform Reddit browser application",
   "main": "main.js",
   "scripts": {
