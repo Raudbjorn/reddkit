@@ -138,4 +138,3 @@ dist
 .DS_Store
 dist-electron/
 .vscode/settings.json
-client/public/htmx.min.js
