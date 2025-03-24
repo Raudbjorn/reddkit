@@ -20,10 +20,8 @@ A sleek, cross-platform Reddit browser built with Electron. Browse subreddits, v
 ## Environment Setup
 
 1. Create a `.env` file in the project root (copy from `.env.example`)
-2. Register your app at https://www.reddit.com/prefs/apps
+2. Authentication is handled by an OAuth proxy service at auth.sveinbjorn.dev, so you don't need to register your own Reddit application.
 3. Add your Reddit API credentials to the `.env` file:
-   - `REDDIT_CLIENT_ID`: Your Reddit application ID
-   - `REDDIT_CLIENT_SECRET`: Your Reddit application secret
    - `REDDIT_USER_AGENT`: User agent string for API requests
    - `REDDIT_REDIRECT_URI`: Callback URL for OAuth
 

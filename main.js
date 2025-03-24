@@ -27,22 +27,7 @@ async function createWindow(port) {
     }
   });
 
-  //Set Content Security Policy
-  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'; " +
-          "script-src 'self' 'unsafe-inline' https://unpkg.com; " +
-          "connect-src 'self' http://127.0.0.1:3000 https://www.reddit.com https://oauth.reddit.com https://api.reddit.com; " +
-          "img-src 'self' https: data:; " +
-          "style-src 'self' 'unsafe-inline';"
-        ]
-      }
-    });
-  });
-  // Load the Express app URL with the dynamically assigned port
+  
   mainWindow.loadURL(`http://127.0.0.1:${port}`);
 
   // Open DevTools during development (optional)
