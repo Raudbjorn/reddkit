@@ -47,6 +47,33 @@
         "portable"
       ],
       "icon": "client/public/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "icon": "client/public/icon.icns",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    },
+    "dmg": {
+      "sign": false,
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     }
   }
 }
