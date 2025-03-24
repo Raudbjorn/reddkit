@@ -62,60 +62,51 @@ async function fetchFromReddit(url, params = {}) {
 // Subreddit search
 app.get('/api/subreddits/search', async (req, res) => {
   const query = req.query.q;
+  const after = req.query.after || '';
+  
   if (!query) {
-    return res.status(400).json({ error: 'Query parameter is required' });
+    return res.status(400).json({ error: 'Missing search query' });
   }
   
+  const tokens = authStore.getTokens();
+  
   try {
-    const response = await fetchFromReddit('https://www.reddit.com/subreddits/search.json', {
-      q: query,
-      limit: 25
-    });
+    // Use authenticated search if logged in, otherwise anonymous
+    const baseUrl = 'https://oauth.reddit.com/subreddits/search';
+    const searchUrl = new URL(baseUrl);
     
-    const subreddits = response.data.data.children.map(child => ({
-      id: child.data.id,
-      name: child.data.display_name,
-      title: child.data.title,
-      description: child.data.public_description,
-      subscribers: child.data.subscribers,
-      created: child.data.created_utc,
-      nsfw: child.data.over18
-    }));
-    
-    // If it's an HTMX request, return HTML
-    if (req.headers['hx-request'] === 'true') {
-      if (subreddits.length === 0) {
-        return res.send('<div class="no-results">No subreddits found</div>');
-      }
-      
-      let html = '';
-      subreddits.forEach(sr => {
-        html += `
-          <div class="subreddit-item" data-name="${sr.name}">
-            <div class="subreddit-header">
-              <div class="subreddit-name">
-                r/${sr.name}
-                ${sr.nsfw ? '<span class="nsfw-tag">NSFW</span>' : ''}
-              </div>
-              <div class="subreddit-stats">
-                ${formatSubscribers(sr.subscribers)} subscribers
-              </div>
-            </div>
-            <div class="subreddit-description">
-              ${sr.description || 'No description available'}
-            </div>
-          </div>
-        `;
-      });
-      
-      return res.send(html);
+    // Add query parameters
+    searchUrl.searchParams.append('q', query);
+    searchUrl.searchParams.append('limit', '25');
+    if (after) {
+      searchUrl.searchParams.append('after', after);
     }
     
-    // Otherwise return JSON
-    return res.json(subreddits);
+    const headers = {
+      'User-Agent': process.env.REDDIT_USER_AGENT || 'ReddKit/1.0.0'
+    };
+    
+    // Add authorization header if authenticated
+    if (tokens && tokens.accessToken) {
+      headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+    }
+    
+    const response = await fetch(searchUrl.toString(), { headers });
+    
+    if (!response.ok) {
+      throw new Error(`Reddit API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Format the response
+    res.json({
+      subreddits: data.data.children.map(child => child.data),
+      after: data.data.after || null
+    });
   } catch (error) {
-    console.error('Error searching subreddits:', error);
-    return res.status(500).json({ error: 'Failed to fetch subreddits' });
+    console.error('Subreddit search error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

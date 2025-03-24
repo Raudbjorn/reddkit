@@ -4,6 +4,10 @@ let currentSort = 'hot';
 let isLoadingMore = false;
 let afterToken = null;
 let noMorePosts = false;
+let subredditAfterToken = null;
+let isLoadingMoreSubreddits = false;
+let noMoreSubreddits = false;
+let currentSubredditSearch = '';
 
 // DOM Elements
 const subredditView = document.getElementById('subreddit-view');
@@ -151,6 +155,36 @@ document.querySelectorAll('.sort-btn').forEach(button => {
     .catch(err => {
       console.error('Error checking auth status:', err);
     });
+
+  const subredditResultsContainer = document.getElementById('subreddit-results');
+  if (subredditResultsContainer) {
+    subredditResultsContainer.addEventListener('scroll', handleSubredditScroll);
+  }
+  
+  // Override the subreddit search form submission
+  const searchForm = document.querySelector('.search-container form');
+  if (searchForm) {
+    searchForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const searchInput = this.querySelector('input[name="q"]');
+      if (!searchInput.value.trim()) return;
+      
+      // Reset pagination variables
+      currentSubredditSearch = searchInput.value.trim();
+      subredditAfterToken = null;
+      isLoadingMoreSubreddits = false;
+      noMoreSubreddits = false;
+      
+      // Show loader and clear previous results
+      const resultsContainer = document.getElementById('subreddit-results');
+      const loader = document.querySelector('.search-container .loader');
+      loader.style.display = 'block';
+      resultsContainer.innerHTML = '';
+      
+      // Fetch initial results
+      fetchSubreddits(currentSubredditSearch);
+    });
+  }
 
 });
 
@@ -456,69 +490,191 @@ function formatTimeAgo(timestamp) {
   return Math.floor(seconds / 31536000) + ' years ago';
 }
 
-// // Function to load a subreddit when clicked
-// function loadSubreddit(subredditName) {
-//   // Update the current subreddit display
-//   document.getElementById('current-subreddit').textContent = `r/${subredditName}`;
+// Handle scroll event for subreddit infinite scrolling
+function handleSubredditScroll(e) {
+  if (!currentSubredditSearch || isLoadingMoreSubreddits || noMoreSubreddits) return;
   
-//   // Hide subreddit search view and show posts view
-//   document.getElementById('subreddit-view').classList.remove('show');
-//   document.getElementById('posts-view').classList.add('show');
+  const scrollElement = e.target;
+  const scrollPosition = scrollElement.scrollTop + scrollElement.clientHeight;
+  const totalHeight = scrollElement.scrollHeight;
   
-//   // Show back button
-//   document.getElementById('back-button').style.display = 'block';
-  
-//   // Clear existing posts
-//   const postsContainer = document.getElementById('posts-container');
-//   postsContainer.innerHTML = '<div class="loading-message">Loading posts...</div>';
-  
-//   // Get the currently active sort button
-//   const activeSortBtn = document.querySelector('.sort-btn.active');
-//   const sortType = activeSortBtn ? activeSortBtn.dataset.sort : 'hot';
-  
-//   // Fetch posts for the subreddit with the active sort
-//   fetchSubredditPosts(subredditName, sortType);
+  // If we're near the bottom (within 200px), load more subreddits
+  if (scrollPosition >= totalHeight - 200) {
+    loadMoreSubreddits();
+  }
+}
 
-//   // Update URL if using history API (optional)
-//   if (history && history.pushState) {
-//     history.pushState({ subreddit: subredditName }, '', `#/r/${subredditName}`);
-//   }
-// }
+// Fetch subreddits with pagination
+function fetchSubreddits(query, after = null) {
+  isLoadingMoreSubreddits = true;
+  
+  let url = `/api/subreddits/search?q=${encodeURIComponent(query)}`;
+  if (after) {
+    url += `&after=${after}`;
+  }
+  
+  fetch(url)
+    .then(response => {
+      if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+      return response.json();
+    })
+    .then(data => {
+      const resultsContainer = document.getElementById('subreddit-results');
+      const loader = document.querySelector('.search-container .loader');
+      
+      if (!after) {
+        // Initial search - replace content
+        resultsContainer.innerHTML = '';
+      }
+      
+      if (data.subreddits && data.subreddits.length > 0) {
+        // Append new results
+        appendSubreddits(data.subreddits);
+        subredditAfterToken = data.after;
+      } else if (!after) {
+        // No results for initial search
+        resultsContainer.innerHTML = '<div class="no-results">No subreddits found</div>';
+        noMoreSubreddits = true;
+      } else {
+        // No more results for pagination
+        const endMessage = document.createElement('div');
+        endMessage.className = 'end-message';
+        endMessage.textContent = 'No more subreddits to load';
+        resultsContainer.appendChild(endMessage);
+        noMoreSubreddits = true;
+      }
+      
+      loader.style.display = 'none';
+      isLoadingMoreSubreddits = false;
+    })
+    .catch(err => {
+      console.error('Error searching subreddits:', err);
+      const resultsContainer = document.getElementById('subreddit-results');
+      const loader = document.querySelector('.search-container .loader');
+      
+      if (!after) {
+        resultsContainer.innerHTML = `<div class="error">Search failed: ${err.message}</div>`;
+      } else {
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'loading-error';
+        errorMessage.textContent = 'Error loading more subreddits. Try again.';
+        resultsContainer.appendChild(errorMessage);
+      }
+      
+      loader.style.display = 'none';
+      isLoadingMoreSubreddits = false;
+    });
+}
 
-// // This assumes you have a function like this to fetch posts
-// function fetchSubredditPosts(subreddit, sort) {
-//   const postsContainer = document.getElementById('posts-container');
+// Load more subreddits for infinite scrolling
+function loadMoreSubreddits() {
+  if (!subredditAfterToken || isLoadingMoreSubreddits || noMoreSubreddits) return;
   
-//   // Show loader
-//   document.getElementById('posts-loader').style.display = 'block';
+  // Create and show a loading indicator at the bottom
+  const resultsContainer = document.getElementById('subreddit-results');
+  const loadingIndicator = document.createElement('div');
+  loadingIndicator.className = 'loading-more';
+  loadingIndicator.textContent = 'Loading more subreddits...';
+  resultsContainer.appendChild(loadingIndicator);
   
-//   // Use fetch or HTMX to load posts
-//   fetch(`http://127.0.0.1:3000/api/posts/${subreddit}?sort=${sort}`)
-//     .then(response => response.json())
-//     .then(data => {
-//       // Process and display posts
-//       displayPosts(data, postsContainer);
-//     })
-//     .catch(error => {
-//       console.error('Error fetching posts:', error);
-//       postsContainer.innerHTML = '<div class="error">Failed to load posts. Please try again.</div>';
-//     })
-//     .finally(() => {
-//       document.getElementById('posts-loader').style.display = 'none';
-//     });
-// }
+  // Fetch more subreddits
+  fetchSubreddits(currentSubredditSearch, subredditAfterToken);
+  
+  // Remove the temporary loading indicator after a delay
+  setTimeout(() => {
+    if (loadingIndicator.parentNode) {
+      loadingIndicator.remove();
+    }
+  }, 2000);
+}
 
-// // Handle back button click
-// document.getElementById('back-button').addEventListener('click', function() {
-//   // Hide posts view and show subreddit search view
-//   document.getElementById('posts-view').classList.remove('show');
-//   document.getElementById('subreddit-view').classList.add('show');
+// Append subreddits to the results container
+function appendSubreddits(subreddits) {
+  const resultsContainer = document.getElementById('subreddit-results');
   
-//   // Hide back button
-//   this.style.display = 'none';
+  // Create a temporary div to hold the HTML
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = subreddits.map(sr => `
+    <div class="subreddit-item" data-name="${sr.display_name}">
+      <div class="subreddit-icon">
+        ${sr.icon_img ? `<img src="${sr.icon_img}" alt="${sr.display_name}">` : 
+          `<div class="default-icon">${sr.display_name.substring(0, 1).toUpperCase()}</div>`}
+      </div>
+      <div class="subreddit-info">
+        <h3>${sr.display_name_prefixed}</h3>
+        <p class="subscribers">${formatSubscribers(sr.subscribers)} subscribers</p>
+        <p class="description">${sr.public_description || 'No description available'}</p>
+      </div>
+    </div>
+  `).join('');
   
-//   // Update URL if using history API (optional)
-//   if (history && history.pushState) {
-//     history.pushState({}, '', '/');
-//   }
-// });
+  // Add click events to each subreddit item
+  const subredditItems = tempDiv.querySelectorAll('.subreddit-item');
+  subredditItems.forEach(item => {
+    item.addEventListener('click', function() {
+      selectSubreddit(this.getAttribute('data-name'));
+    });
+  });
+  
+  // Append each subreddit individually to maintain event handlers
+  while (tempDiv.firstChild) {
+    resultsContainer.appendChild(tempDiv.firstChild);
+  }
+}
+
+// Helper function to format subscriber count
+function formatSubscribers(count) {
+  if (!count) return '0';
+  if (count >= 1000000) {
+    return (count / 1000000).toFixed(1) + 'm';
+  } else if (count >= 1000) {
+    return (count / 1000).toFixed(1) + 'k';
+  }
+  return count.toString();
+}
+
+// Update your existing posts endpoint to support pagination
+app.get('/api/r/:subreddit/posts', async (req, res) => {
+  const subreddit = req.params.subreddit;
+  const sort = req.query.sort || 'hot';
+  const after = req.query.after || '';
+  
+  const tokens = authStore.getTokens();
+  
+  try {
+    const baseUrl = `https://oauth.reddit.com/r/${subreddit}/${sort}`;
+    const postsUrl = new URL(baseUrl);
+    
+    // Add query parameters
+    postsUrl.searchParams.append('limit', '25');
+    if (after) {
+      postsUrl.searchParams.append('after', after);
+    }
+    
+    const headers = {
+      'User-Agent': process.env.REDDIT_USER_AGENT || 'ReddKit/1.0.0'
+    };
+    
+    // Add authorization header if authenticated
+    if (tokens && tokens.accessToken) {
+      headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+    }
+    
+    const response = await fetch(postsUrl.toString(), { headers });
+    
+    if (!response.ok) {
+      throw new Error(`Reddit API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Format and send the response
+    res.json({
+      posts: data.data.children.map(child => child.data),
+      after: data.data.after || null
+    });
+  } catch (error) {
+    console.error('Posts fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
