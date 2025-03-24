@@ -1,6 +1,10 @@
 const dotenv = require('dotenv');
 dotenv.config(); // This loads the .env file into process.env
 
+// Required environment variables:
+// - NODE_ENV: "development" or "production"
+// - REDDIT_USER_AGENT: User agent string for API requests
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -195,7 +199,7 @@ app.get('/api/r/:subreddit/posts', async (req, res) => {
       permalink: child.data.permalink,
       url: child.data.url,
       domain: child.data.domain,
-      selftext: child.data.selftext,
+      selftext:  snudown.markdown(child.data.selftext),
       thumbnail: child.data.thumbnail
     }));
     
@@ -257,7 +261,7 @@ app.get('/api/post/*', async (req, res) => {
         permalink: postData.permalink,
         url: postData.url,
         domain: postData.domain,
-        selftext: postData.selftext,
+        selftext: snudown.markdown(postData.selftext),
         isVideo: postData.is_video
       });
     }
@@ -377,110 +381,76 @@ function processCommentBody(body) {
   }
 }
 
-const REDDIT_CONFIG = {
-  clientId: process.env.REDDIT_CLIENT_ID,
-  clientSecret: process.env.REDDIT_CLIENT_SECRET,
-  redirectUri: process.env.REDDIT_REDIRECT_URI || 'http://127.0.0.1:3000/authorize_callback',
-  userAgent: process.env.REDDIT_USER_AGENT || 'ReddKit/1.0.0'
+// Define the proxy configuration instead
+const PROXY_CONFIG = {
+  baseUrl: 'https://auth.sveinbjorn.dev',
+  redirectUri: 'http://127.0.0.1:3000/auth_callback'  // Local callback to handle the token
 };
 
-function validateConfig() {
-  if (!process.env.REDDIT_CLIENT_ID) {
-    console.warn('Warning: REDDIT_CLIENT_ID environment variable is not set');
-  }
-  
-  if (!process.env.REDDIT_CLIENT_SECRET) {
-    console.error('Error: REDDIT_CLIENT_SECRET environment variable is not set');
-    process.exit(1); // Exit if the secret is missing as it's critical
-  }
-}
-
-validateConfig();
-// Initialize the oauthState
-let oauthState = null;
-
-// Generate random state for OAuth security
-function generateRandomState() {
-  return crypto.randomBytes(16).toString('hex');
-}
-
-// Add OAuth routes
+// Update the login route to redirect to proxy
 app.get('/login', (req, res) => {
-  const state = generateRandomState();
-  oauthState = state;
+  const redirectUri = encodeURIComponent(PROXY_CONFIG.redirectUri);
+  const loginUrl = `${PROXY_CONFIG.baseUrl}/login?redirect_uri=${redirectUri}`;
   
-  const authUrl = new URL('https://www.reddit.com/api/v1/authorize');
-  authUrl.searchParams.append('client_id', REDDIT_CONFIG.clientId);
-  authUrl.searchParams.append('response_type', 'code');
-  authUrl.searchParams.append('state', state);
-  authUrl.searchParams.append('redirect_uri', REDDIT_CONFIG.redirectUri);
-  authUrl.searchParams.append('duration', 'permanent');
-  // Update the scope to be more explicit about mysubreddits
-  authUrl.searchParams.append('scope', 'identity subscribe read mysubreddits');
-  
-  res.redirect(authUrl.toString());
+  console.log(`Redirecting to auth proxy: ${loginUrl}`);
+  res.redirect(loginUrl);
 });
 
-// OAuth callback handler
-app.get('/authorize_callback', async (req, res) => {
-  const { code, state, error } = req.query;
+// Add a local callback handler to store the token received from proxy
+app.get('/auth_callback', async (req, res) => {
+  const { token, error } = req.query;
   
-  // Check for errors or state mismatch
   if (error) {
-    console.error('Reddit OAuth error:', error);
-    return res.redirect('/?error=oauth_denied');
+    console.error('Authentication error:', error);
+    return res.redirect('/?error=auth_error');
   }
   
-  if (!state || state !== oauthState) {
-    console.error('Invalid state parameter');
-    return res.redirect('/?error=invalid_state');
+  if (!token) {
+    console.error('Missing token parameter');
+    return res.redirect('/?error=missing_token');
   }
   
-  // Exchange code for tokens
   try {
-    const tokenResponse = await fetch('https://www.reddit.com/api/v1/access_token', {
+    // Exchange the app token for Reddit tokens
+    const response = await fetch(`${PROXY_CONFIG.baseUrl}/token`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${Buffer.from(`${REDDIT_CONFIG.clientId}:${REDDIT_CONFIG.clientSecret}`).toString('base64')}`
+        'Content-Type': 'application/json'
       },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: REDDIT_CONFIG.redirectUri
-      })
+      body: JSON.stringify({ appToken: token })
     });
     
-    const tokenData = await tokenResponse.json();
+    const data = await response.json();
     
-    if (tokenResponse.ok) {
-      // Store tokens with expiration
-      const tokens = {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token,
-        expiresAt: Date.now() + (tokenData.expires_in * 1000)
-      };
-      
-      // Save to persistent store
-      authStore.setTokens(tokens);
-      
-      return res.redirect('/');
-    } else {
-      console.error('Token exchange failed:', tokenData);
-      return res.redirect('/?error=token_exchange');
+    if (!response.ok || !data.access_token || !data.refresh_token) {
+      console.error('Failed to exchange token:', data.error || 'Missing token data');
+      return res.redirect('/?error=token_exchange_failed');
     }
+    
+    // Store tokens with expiration
+    const tokens = {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: Date.now() + (parseInt(data.expires_in) * 1000)
+    };
+    
+    // Save to persistent store
+    authStore.setTokens(tokens);
+    
+    // Redirect to home page
+    res.redirect('/');
   } catch (error) {
-    console.error('Authentication error:', error);
-    res.redirect('/?error=auth_error');
+    console.error('Error exchanging token:', error);
+    res.redirect('/?error=token_exchange_error');
   }
 });
-
+ 
 // Logout endpoint
 app.get('/logout', (req, res) => {
-  // Clear tokens from persistent store
+  const wasLoggedIn = !!authStore.getTokens();
   authStore.clearTokens();
   
-  // Redirect back to home page
+  console.log(`User logged out (was ${wasLoggedIn ? 'authenticated' : 'not authenticated'})`);
   res.redirect('/');
 });
 
@@ -514,28 +484,27 @@ async function ensureAuthenticated(req, res, next) {
   next();
 }
 
-// Refresh the access token
 async function refreshAccessToken(tokens) {
+  if (!tokens || !tokens.refreshToken) {
+    console.error('Cannot refresh: missing refresh token');
+    return null;
+  }
+
   try {
-    const response = await fetch('https://www.reddit.com/api/v1/access_token', {
+    const response = await fetch(`${PROXY_CONFIG.baseUrl}/refresh`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${Buffer.from(`${REDDIT_CONFIG.clientId}:${REDDIT_CONFIG.clientSecret}`).toString('base64')}`
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: tokens.refreshToken
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: tokens.refreshToken })
     });
     
     const data = await response.json();
     
     if (!response.ok) {
-      console.error(`Refresh token failed: ${data.error}`);
+      console.error(`Refresh token failed: ${data.error || response.status}`);
       return null;
     }
     
+    // Return updated tokens
     return {
       ...tokens,
       accessToken: data.access_token,
@@ -690,21 +659,39 @@ app.get('/fragments/subreddits', async (req, res) => {
 
 // Get subscribed subreddits helper
 async function getSubscribedSubreddits(accessToken) {
+  if (!accessToken) {
+    throw new Error('Access token required');
+  }
+
   try {
-    const response = await fetch('https://oauth.reddit.com/subreddits/mine/subscriber.json?limit=100', {
+    const response = await fetch('https://oauth.reddit.com/subreddits/mine/subscriber?limit=100', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'User-Agent': REDDIT_CONFIG.userAgent
+        'User-Agent': process.env.REDDIT_USER_AGENT || 'ReddKit/1.0.0'
       }
     });
     
+    // Handle non-OK response
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Subreddit fetch error:', response.status, errorData);
-      throw new Error(`Failed to fetch subscribed subreddits: ${response.status}`);
+      let errorMessage = `HTTP error ${response.status}`;
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (e) {
+        // Ignore JSON parsing errors
+      }
+      
+      throw new Error(`Failed to fetch subscribed subreddits: ${errorMessage}`);
     }
     
+    // Parse the response
     const data = await response.json();
+    
+    if (!data || !data.data || !Array.isArray(data.data.children)) {
+      throw new Error('Invalid response format from Reddit API');
+    }
+    
     return data.data.children.map(child => child.data);
   } catch (error) {
     console.error('Error in getSubscribedSubreddits:', error);
