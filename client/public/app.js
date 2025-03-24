@@ -7,6 +7,7 @@ import {
 } from './modules/ui-handlers.js';
 import { checkAuthStatus } from './modules/api.js';
 import { loadStoredSubreddit } from './modules/subreddits.js';
+import { loadSubredditStats } from './modules/subreddit-stats.js';
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -44,6 +45,16 @@ document.addEventListener('DOMContentLoaded', function() {
   if (subredditResultsContainer) {
     subredditResultsContainer.addEventListener('scroll', handleSubredditScroll);
   }
+
+  // Add to the document object to prevent popup blocker issues
+  document.body.addEventListener('click', (e) => {
+    // Handle external links to open in system browser if needed
+    const link = e.target.closest('a[href^="http"]');
+    if (link && !link.hasAttribute('target')) {
+      e.preventDefault();
+      window.open(link.href, '_blank');
+    }
+  });
 });
 
 // At the bottom of app.js, expose required functions to window
@@ -53,3 +64,4 @@ import { selectSubreddit } from './modules/ui-handlers.js';
 // Expose functions needed for inline HTML event handlers
 window.loadComments = loadComments;
 window.selectSubreddit = selectSubreddit;
+window.loadSubredditStats = loadSubredditStats; // This still works because it's already imported at the top

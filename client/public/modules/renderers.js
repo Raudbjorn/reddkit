@@ -1,6 +1,7 @@
 import { appState } from './state.js';
-import { fetchPostDetails, fetchComments } from './api.js';
+import { fetchPostDetails, fetchComments, vote, getSubscriptionStatus, toggleSubscribe } from './api.js';
 import { formatNumber, formatTimeAgo, formatDate, formatSubscribers } from './utils.js';
+import { showPopup } from './ui-handlers.js';
 
 // Render posts list
 export function renderPosts(data) {
@@ -42,14 +43,45 @@ export function appendPosts(posts) {
 
 // Create HTML for a post item
 function createPostHTML(post) {
+  const isGilded = post.gilded && post.gilded > 0;
+  const isPinned = post.stickied === true;
+  
   return `
-    <div class="post-item" data-permalink="${post.permalink}">
-      <div class="post-score">${formatNumber(post.score)}</div>
+    <div class="post-item ${isPinned ? 'pinned-post' : ''}" data-permalink="${post.permalink}" data-id="${post.name}">
+      <div class="vote-container">
+        <button class="vote-arrow upvote" data-vote="up" data-id="${post.name}" aria-label="Upvote">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M12 4.5L4 15h16L12 4.5z"/>
+          </svg>
+        </button>
+        <div class="post-score" data-score="${post.score}">${formatNumber(post.score)}</div>
+        <button class="vote-arrow downvote" data-vote="down" data-id="${post.name}" aria-label="Downvote">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M12 19.5L4 9h16L12 19.5z"/>
+          </svg>
+        </button>
+      </div>
       <div class="post-content">
+        ${isPinned ? `
+          <div class="pinned-indicator">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+              <path d="M9.5 3h-3a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5H7v4H5.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1H9V7h.5a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5z"/>
+            </svg>
+            Pinned by moderators
+          </div>
+        ` : ''}
         <h3 class="post-title">${post.title}</h3>
         <div class="post-meta">
           Posted by u/${post.author} • ${formatTimeAgo(post.created)} • 
           ${post.numComments} comment${post.numComments !== 1 ? 's' : ''}
+          ${isGilded ? `
+            <div class="gilded-badge" title="This post received gold">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm0 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm4 8c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V9h1v1c0 .55.45 1 1 1h4c.55 0 1-.45 1-1V9h1v1z"/>
+              </svg>
+              <span>${post.gilded}x Gold</span>
+            </div>
+          ` : ''}
         </div>
         ${post.thumbnail && post.thumbnail.startsWith('http') ? 
           `<div class="post-thumbnail"><img src="${post.thumbnail}" alt="Thumbnail"></div>` : ''}
@@ -161,12 +193,36 @@ export function renderComments(comments) {
     // Increase indent based on depth
     const depth = comment.depth || 0;
     const indentClass = depth > 0 ? ` indent-${Math.min(depth, 5)}` : '';
+    const isGilded = comment.gilded && comment.gilded > 0;
     
     html += `
-      <div class="comment${indentClass}">
+      <div class="comment${indentClass}" data-id="${comment.name}">
         <div class="comment-header">
           <span class="comment-author">u/${comment.author || '[deleted]'}</span>
-          <span class="comment-meta">${formatTimeAgo(comment.created)} • ${comment.score} points</span>
+          <span class="comment-meta">
+            ${formatTimeAgo(comment.created)} • ${comment.score} points
+            ${isGilded ? `
+              <div class="gilded-badge" title="This comment received gold">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                  <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm0 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm4 8c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V9h1v1c0 .55.45 1 1 1h4c.55 0 1-.45 1-1V9h1v1z"/>
+                </svg>
+                <span>${comment.gilded}x Gold</span>
+              </div>
+            ` : ''}
+          </span>
+        </div>
+        <div class="vote-container comment-votes">
+          <button class="vote-arrow upvote" data-vote="up" data-id="${comment.name}" aria-label="Upvote">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M12 4.5L4 15h16L12 4.5z"/>
+            </svg>
+          </button>
+          <div class="post-score" data-score="${comment.score}">${formatNumber(comment.score)}</div>
+          <button class="vote-arrow downvote" data-vote="down" data-id="${comment.name}" aria-label="Downvote">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M12 19.5L4 9h16L12 19.5z"/>
+            </svg>
+          </button>
         </div>
         <div class="comment-body">${comment.body || ''}</div>
         
@@ -207,4 +263,37 @@ export function appendSubreddits(subreddits) {
       resultsContainer.appendChild(tempDiv.firstChild);
     }
   });
+}
+
+// Add subscribe button to the subreddit header
+export async function addSubscribeButton(subreddit) {
+  try {
+    const { subscribed } = await getSubscriptionStatus(subreddit);
+    
+    const subscribeButton = document.createElement('button');
+    subscribeButton.id = 'subscribe-button';
+    subscribeButton.className = `subscribe-button ${subscribed ? 'subscribed' : ''}`;
+    subscribeButton.dataset.subreddit = subreddit;
+    subscribeButton.dataset.action = subscribed ? 'unsub' : 'sub';
+    
+    subscribeButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        ${subscribed ? 
+          '<path d="M19 13H5v-2h14v2z"/>' : 
+          '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>'}
+      </svg>
+      ${subscribed ? 'Joined' : 'Join'}
+    `;
+    
+    const header = document.querySelector('.subreddit-header-main');
+    if (header) {
+      header.appendChild(subscribeButton);
+    }
+    
+    // Add event listener
+    subscribeButton.addEventListener('click', handleSubscribeClick);
+    
+  } catch (error) {
+    console.error('Error adding subscribe button:', error);
+  }
 }

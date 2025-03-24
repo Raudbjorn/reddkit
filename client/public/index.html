@@ -59,15 +59,101 @@
         <!-- Posts View -->
         <div id="posts-view" class="view">
           <div class="subreddit-header">
-            <h2 id="current-subreddit">r/subreddit</h2>
+            <div class="subreddit-header-main">
+              <h2 id="current-subreddit">r/subreddit</h2>
+              <div class="subreddit-stats-summary">
+                <span class="stat-pill subscribers"><i class="icon-users"></i> <span id="subreddit-subscribers">0</span></span>
+                <span class="stat-pill active-users"><i class="icon-active"></i> <span id="subreddit-active">0</span> online</span>
+                <span class="stat-pill created"><i class="icon-calendar"></i> Created <span id="subreddit-age">0</span> years ago</span>
+                <span class="stat-pill rank"><i class="icon-chart"></i> Rank #<span id="subreddit-rank">0</span></span>
+              </div>
+              <div class="subreddit-type-tags">
+                <span id="subreddit-type" class="type-tag">public</span>
+                <span id="subreddit-nsfw" class="nsfw-tag" style="display: none;">NSFW</span>
+                <span id="subreddit-restricted" class="restricted-tag" style="display: none;">restricted</span>
+              </div>
+            </div>
+            
             <div class="sort-controls">
               <button class="sort-btn active" data-sort="hot">Hot</button>
               <button class="sort-btn" data-sort="new">New</button>
               <button class="sort-btn" data-sort="top">Top</button>
+              <button class="sort-btn" data-sort="rising">Rising</button>
+              <button class="stats-btn" id="show-stats">📊 Stats</button>
+            </div>
+          </div>
+
+          <!-- Add a collapsible detailed stats section -->
+          <div id="subreddit-detailed-stats" class="detailed-stats-panel" style="display: none;">
+            <div class="stats-grid">
+              <div class="stats-column">
+                <h3>Community Stats</h3>
+                <div class="stat-row"><span class="stat-label">Total Subscribers:</span> <span id="stat-total-subscribers">0</span></div>
+                <div class="stat-row"><span class="stat-label">Daily Growth:</span> <span id="stat-daily-growth">0</span> <span class="trend up">↑</span></div>
+                <div class="stat-row"><span class="stat-label">Weekly Growth:</span> <span id="stat-weekly-growth">0</span> <span class="trend up">↑</span></div>
+                <div class="stat-row"><span class="stat-label">Currently Online:</span> <span id="stat-currently-online">0</span> <span class="ratio">(<span id="stat-online-ratio">0</span>%)</span></div>
+                <div class="stat-row"><span class="stat-label">Created:</span> <span id="stat-created-date">Unknown</span> (<span id="stat-subreddit-age">0</span> days old)</div>
+                <div class="stat-row"><span class="stat-label">Type:</span> <span id="stat-subreddit-type">public</span></div>
+                <div class="stat-row"><span class="stat-label">Moderated By:</span> <span id="stat-mod-count">0</span> moderators</div>
+              </div>
+              
+              <div class="stats-column">
+                <h3>Content Stats</h3>
+                <div class="stat-row"><span class="stat-label">Total Posts:</span> <span id="stat-total-posts">Unknown</span></div>
+                <div class="stat-row"><span class="stat-label">Posts Per Day:</span> <span id="stat-posts-per-day">0</span></div>
+                <div class="stat-row"><span class="stat-label">Avg. Comments:</span> <span id="stat-avg-comments">0</span> per post</div>
+                <div class="stat-row"><span class="stat-label">Avg. Score:</span> <span id="stat-avg-score">0</span> per post</div>
+                <div class="stat-chart">
+                  <h4>Content Breakdown</h4>
+                  <div class="chart-container" id="content-type-chart">
+                    <div class="chart-bar" style="width: 40%;" title="Text: 40%">Text: 40%</div>
+                    <div class="chart-bar" style="width: 30%;" title="Images: 30%">Images: 30%</div>
+                    <div class="chart-bar" style="width: 20%;" title="Links: 20%">Links: 20%</div>
+                    <div class="chart-bar" style="width: 10%;" title="Videos: 10%">Videos: 10%</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="stats-column">
+                <h3>Activity & Engagement</h3>
+                <div class="stat-row"><span class="stat-label">Activity Rank:</span> <span id="stat-activity-rank">Unknown</span> of all subreddits</div>
+                <div class="stat-row"><span class="stat-label">Most Active:</span> <span id="stat-most-active-time">Unknown</span></div>
+                <div class="stat-row"><span class="stat-label">Post Success Rate:</span> <span id="stat-success-rate">0</span>% (% posts > 100 upvotes)</div>
+                <div class="stat-row"><span class="stat-label">Discussion Rate:</span> <span id="stat-discussion-rate">0</span>% (posts with >10 comments)</div>
+                <div class="stat-chart">
+                  <h4>Weekly Activity</h4>
+                  <div class="sparkline" id="weekly-activity-chart">
+                    <div class="spark-bar" style="height: 20%"></div>
+                    <div class="spark-bar" style="height: 40%"></div>
+                    <div class="spark-bar" style="height: 70%"></div>
+                    <div class="spark-bar" style="height: 100%"></div>
+                    <div class="spark-bar" style="height: 60%"></div>
+                    <div class="spark-bar" style="height: 30%"></div>
+                    <div class="spark-bar" style="height: 10%"></div>
+                  </div>
+                  <div class="spark-labels">
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                    <span>Sun</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="related-subreddits">
+              <h3>Related Subreddits</h3>
+              <div class="related-subreddit-list" id="related-subreddits">
+                <span class="related-subreddit">r/similar1</span>
+                <span class="related-subreddit">r/similar2</span>
+                <span class="related-subreddit">r/similar3</span>
+              </div>
             </div>
           </div>
           
-          <!-- Ensure your posts container has proper scrolling properties -->
           <div class="posts-layout">
             <div class="posts-list">
               <div id="posts-loader" class="loader" style="display: none;">Loading posts...</div>
@@ -93,6 +179,6 @@
     </footer>
   </div>
   <script src="theme.js"></script>
-  <script type="module" src="app.js"></script>+
+  <script type="module" src="app.js"></script>
 </body>
 </html>

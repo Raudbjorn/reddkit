@@ -18,22 +18,39 @@ function setupPostRoutes(app) {
       
       console.log(`Fetching posts for r/${subredditName} (${sort}) with params:`, params);
       
+      // Make sure we're importing REDDIT_USER_AGENT at the top of this file
       const response = await fetchFromReddit(`https://www.reddit.com/r/${subredditName}/${sort}.json`, params);
       
-      // Map the posts data
-      const posts = response.data.data.children.map(child => ({
-        id: child.data.id,
-        title: child.data.title,
-        author: child.data.author,
-        score: child.data.score,
-        numComments: child.data.num_comments,
-        created: child.data.created_utc,
-        permalink: child.data.permalink,
-        url: child.data.url,
-        domain: child.data.domain,
-        selftext: snudown.markdown(child.data.selftext),
-        thumbnail: child.data.thumbnail
-      }));
+      // Add error handling for empty response
+      if (!response || !response.data || !response.data.data) {
+        console.error('Invalid response structure from Reddit API');
+        return res.status(500).json({ error: 'Invalid response from Reddit API' });
+      }
+      
+      // Map the posts data - check for missing properties
+      const posts = response.data.data.children.map(child => {
+        if (!child || !child.data) {
+          return null;
+        }
+        
+        const data = child.data;
+        return {
+          id: data.id || '',
+          name: data.name || '', // Add name for voting
+          title: data.title || 'No Title',
+          author: data.author || '[deleted]',
+          score: data.score || 0,
+          numComments: data.num_comments || 0,
+          created: data.created_utc || 0,
+          permalink: data.permalink || '',
+          url: data.url || '',
+          domain: data.domain || '',
+          selftext: data.selftext ? (snudown ? snudown.markdown(data.selftext) : data.selftext) : '',
+          thumbnail: data.thumbnail || '',
+          stickied: !!data.stickied,  // Add stickied property
+          gilded: data.gilded || 0    // Add gilded property
+        };
+      }).filter(post => post !== null);
       
       console.log(`Returning ${posts.length} posts with after: ${response.data.data.after}`);
       
@@ -45,7 +62,7 @@ function setupPostRoutes(app) {
       });
     } catch (error) {
       console.error(`Error fetching posts for r/${subredditName}:`, error);
-      return res.status(500).json({ error: 'Failed to fetch posts' });
+      return res.status(500).json({ error: 'Failed to fetch posts: ' + error.message });
     }
   });
 
@@ -102,6 +119,112 @@ function setupPostRoutes(app) {
       return res.status(500).json({ 
         error: `Failed to fetch ${isCommentsRequest ? 'comments' : 'post details'}: ${error.message}` 
       });
+    }
+  });
+
+  // Handle voting
+  app.post('/api/vote', async (req, res) => {
+    const { id, dir } = req.body;
+    const tokens = authStore.getTokens();
+    
+    if (!tokens) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    try {
+      const response = await fetch('https://oauth.reddit.com/api/vote', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': REDDIT_USER_AGENT
+        },
+        body: new URLSearchParams({
+          id,
+          dir,
+          api_type: 'json'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Reddit API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Error voting:', error);
+      return res.status(500).json({ error: 'Failed to vote' });
+    }
+  });
+
+  // Subscribe to subreddit
+  app.post('/api/subreddit/subscribe', async (req, res) => {
+    const { subreddit, action } = req.body;
+    const tokens = authStore.getTokens();
+    
+    if (!tokens) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    try {
+      const response = await fetch('https://oauth.reddit.com/api/subscribe', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': REDDIT_USER_AGENT
+        },
+        body: new URLSearchParams({
+          sr_name: subreddit,
+          action: action, // 'sub' or 'unsub'
+          api_type: 'json'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Reddit API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Error subscribing:', error);
+      return res.status(500).json({ error: 'Failed to update subscription' });
+    }
+  });
+
+  // Get subscription status
+  app.get('/api/subreddit/:name/subscription', async (req, res) => {
+    const name = req.params.name;
+    const tokens = authStore.getTokens();
+    
+    if (!tokens) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    try {
+      // Get subscription status by checking if the subreddit is in the user's subscribed list
+      const response = await fetch('https://oauth.reddit.com/subreddits/mine/subscriber', {
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+          'User-Agent': REDDIT_USER_AGENT
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Reddit API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const isSubscribed = data.data.children.some(
+        child => child.data.display_name.toLowerCase() === name.toLowerCase()
+      );
+      
+      return res.json({ subscribed: isSubscribed });
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      return res.status(500).json({ error: 'Failed to check subscription status' });
     }
   });
 }
